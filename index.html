@@ -1830,14 +1830,14 @@ reg({idx:'15',group:'Avanzado',navTitle:'Proyecto final',html:`
 <ol>
 <li>Actualizá el sistema completo (<em>módulo 6</em>).</li>
 <li>Creá un usuario administrador con sudo y desde ahí dejá de usar root (<em>módulo 4</em>).</li>
-<li>Configurá acceso SSH por clave y desactivá el login por contraseña (<em>módulos 9 y 14</em>).</li>
+<li>Configurá acceso SSH por clave y desactivá el login por contraseña, editando <code>sshd_config</code> directamente con <code>vi</code> (<em>módulos 9, 14 y 17</em>).</li>
 <li>Activá el firewall permitiendo SSH, HTTP y HTTPS (<em>módulos 9 y 14</em>).</li>
 </ol>
 
 <h2>Fase 2 — Montar el servidor web</h2>
 <ol>
 <li>Instalá <code>nginx</code> y verificá que arranca al bootear (<em>módulos 6 y 8</em>).</li>
-<li>Publicá una página <code>index.html</code> propia en <code>/var/www/html</code> con los permisos y propietario correctos (<em>módulos 2 y 3</em>).</li>
+<li>Publicá una página <code>index.html</code> propia en <code>/var/www/html</code> (creala o editala con <code>vi</code>) con los permisos y propietario correctos (<em>módulos 2, 3 y 17</em>).</li>
 <li>Comprobá con <code>curl</code> que responde, y revisá los logs de acceso (<em>módulos 8 y 9</em>).</li>
 </ol>
 
@@ -1856,8 +1856,17 @@ reg({idx:'15',group:'Avanzado',navTitle:'Proyecto final',html:`
 <li>Simulá un problema (detené nginx) y confirmá que tu chequeo lo detecta (<em>módulos 7, 8 y 10</em>).</li>
 </ol>
 
+<h2>Fase 5 — Afiná tu entorno de trabajo</h2>
+<p>El servidor ya funciona; ahora hacé que operarlo sea rápido y cómodo. Esta fase pone en práctica los complementos: dominar la shell y editar sin depender de nada instalado.</p>
+<ol>
+<li>Editá al menos una configuración del servidor directamente con <code>vi</code> —por ejemplo el <em>virtual host</em> de nginx o el archivo <code>.service</code> que creaste—: buscá una línea con <code>/</code>, cambiá un valor y guardá con <code>:wq</code> (<em>módulo 17</em>).</li>
+<li>Creá en tu <code>.bashrc</code> alias para lo que más vas a repetir en este servidor. Por ejemplo: <code>alias errlog='sudo tail -f /var/log/nginx/error.log'</code>, <code>alias reweb='sudo systemctl restart nginx'</code>, <code>alias ports='ss -tuln'</code> (<em>módulo 16</em>).</li>
+<li>Poné tus scripts (<code>backup.sh</code>, <code>healthcheck.sh</code>) en <code>~/bin</code> y agregá esa carpeta al <code>PATH</code> en el <code>.bashrc</code>, para ejecutarlos por nombre desde cualquier lado (<em>módulos 13 y 16</em>).</li>
+<li>Con el servidor ya expuesto, seguí en vivo los intentos de acceso con <code>tail -f</code> sobre el log de autenticación, sacá el ranking de IPs atacantes y confirmá que <code>fail2ban</code> las está baneando (<em>módulos 10 y 14</em>).</li>
+</ol>
+
 <div class="note tip"><span class="tag">Criterio de "terminado"</span>
-Tu servidor está listo cuando: sobrevive a un reinicio con todos los servicios levantados solos, solo acepta SSH por clave, sirve tu web, se respalda solo cada noche y te avisaría si algo se cae. Ese es, en esencia, el trabajo de un administrador de sistemas.</div>
+Tu servidor está listo cuando: sobrevive a un reinicio con todos los servicios levantados solos, solo acepta SSH por clave, sirve tu web, se respalda solo cada noche, te avisaría si algo se cae, y podés operarlo con soltura —editar cualquier config con vi y disparar tus tareas con un alias corto—. Ese es, en esencia, el trabajo de un administrador de sistemas.</div>
 
 <h2>¿Y ahora qué?</h2>
 <p>Con estas bases sólidas, los siguientes pasos naturales son:</p>

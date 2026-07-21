@@ -274,7 +274,7 @@ function reg(m){MODS.push(m)}
 /* ============ PORTADA ============ */
 reg({idx:'~',group:'Fundamentos',navTitle:'Inicio',html:`
 <div class="hero">
-  <div class="kicker">// curso interactivo · 15 módulos · inicial → avanzado</div>
+  <div class="kicker">// curso interactivo · 17 módulos · inicial → avanzado</div>
   <h1>Administrá un servidor<br>Linux desde <span class="n">cero</span>.</h1>
   <p class="lead">Un recorrido práctico por la terminal: desde escribir tu primer comando hasta monitorear servicios, configurar redes, escribir scripts y asegurar un servidor de producción. Cada módulo trae explicaciones, diagramas, ejemplos reales de terminal y ejercicios con solución.</p>
 </div>
@@ -1335,6 +1335,60 @@ Un disco al 100% rompe casi todo: servicios que no arrancan, bases que se corrom
 <tr><td><code>journalctl -p err -b</code></td><td>Todos los errores desde el último arranque.</td></tr>
 </tbody></table>
 
+<h2>Ver ataques de fuerza bruta en vivo</h2>
+<p>Todo servidor con SSH expuesto a internet recibe, sin excepción, oleadas de bots que prueban usuarios y contraseñas al azar. Cada intento fallido queda registrado. En Debian/Ubuntu se anota en <code>/var/log/auth.log</code>; en RHEL, Fedora o Rocky, en <code>/var/log/secure</code>. La herramienta clave para vigilarlo <strong>en tiempo real</strong> es <code>tail -f</code>: en vez de mostrar el final del archivo y salir, se queda "enganchado" e imprime cada línea nueva apenas aparece.</p>
+
+<div class="fig">
+<svg viewBox="0 0 660 120" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12">
+  <rect x="12" y="36" width="158" height="48" rx="8" fill="#1e2128" stroke="#f2a541"/>
+  <text x="91" y="58" text-anchor="middle" fill="#f2a541" font-weight="700">auth.log</text>
+  <text x="91" y="74" text-anchor="middle" fill="#9aa0ac">el log crece</text>
+
+  <line x1="170" y1="60" x2="243" y2="60" stroke="#6b7280" stroke-width="1.5"/>
+  <polygon points="243,60 235,56 235,64" fill="#6b7280"/>
+  <text x="206" y="50" text-anchor="middle" fill="#8ec07c" font-weight="700">tail -f</text>
+
+  <rect x="245" y="36" width="170" height="48" rx="8" fill="#1e2128" stroke="#7cc5c9"/>
+  <text x="330" y="58" text-anchor="middle" fill="#7cc5c9" font-weight="700">grep "Failed"</text>
+  <text x="330" y="74" text-anchor="middle" fill="#9aa0ac">filtra los fallos</text>
+
+  <line x1="415" y1="60" x2="488" y2="60" stroke="#6b7280" stroke-width="1.5"/>
+  <polygon points="488,60 480,56 480,64" fill="#6b7280"/>
+
+  <rect x="490" y="36" width="158" height="48" rx="8" fill="#1e2128" stroke="#e06c75"/>
+  <text x="569" y="58" text-anchor="middle" fill="#e06c75" font-weight="700">tu pantalla</text>
+  <text x="569" y="74" text-anchor="middle" fill="#9aa0ac">en vivo</text>
+</svg>
+<div class="cap">Del log al ojo: seguir los intentos según ocurren</div>
+</div>
+
+<p>Seguí el archivo y quedate mirando. Cada línea que aparezca es un intento de acceso en el momento:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">tail -f en vivo</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo tail <span class="fl">-f</span> /var/log/auth.log | grep <span class="hl">"Failed password"</span></span></div>
+<div class="l"><span class="out">Failed password for invalid user admin from </span><span class="hl">203.0.113.45</span><span class="out"> port 54122 ssh2</span></div>
+<div class="l"><span class="out">Failed password for root from </span><span class="hl">203.0.113.45</span><span class="out"> port 54130 ssh2</span></div>
+<div class="l"><span class="out">Failed password for invalid user oracle from </span><span class="hl">198.51.100.7</span><span class="out"> port 41888 ssh2</span></div>
+<div class="l"><span class="out">Failed password for invalid user test from </span><span class="hl">198.51.100.7</span><span class="out"> port 41902 ssh2</span></div>
+<div class="l"><span class="cm"># las líneas siguen apareciendo solas... salí con Ctrl+C</span></div>
+</div></div>
+<div class="note info"><span class="tag">La misma idea con systemd</span>
+Si tu sistema usa journald, seguís el servicio SSH directo con <code>sudo journalctl -u ssh -f</code>. El <code>-f</code> hace exactamente lo mismo que en <code>tail</code>: se queda mostrando lo nuevo en tiempo real.</div>
+
+<p>Mirar el chorro en vivo impresiona, pero para dimensionar el ataque conviene <strong>rankear las IPs que más fallaron</strong>. Encadenando lo que viste en el módulo de texto:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">top de IPs atacantes</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo grep <span class="hl">"Failed password"</span> /var/log/auth.log | grep <span class="fl">-oE</span> <span class="hl">"from [0-9.]+"</span> | awk <span class="hl">'{print $2}'</span> | sort | uniq <span class="fl">-c</span> | sort <span class="fl">-rn</span> | head</span></div>
+<div class="l"><span class="out">    312 </span><span class="hl">203.0.113.45</span></div>
+<div class="l"><span class="out">     88 </span><span class="hl">198.51.100.7</span></div>
+<div class="l"><span class="out">     12 192.0.2.33</span></div>
+<div class="l"><span class="cm"># 312 intentos desde una sola IP = fuerza bruta de manual</span></div>
+</div></div>
+<div class="note tip"><span class="tag">De verlo a frenarlo</span>
+Vigilar es el primer paso; el segundo es bloquear. Una IP con cientos de fallos es justo lo que <code>fail2ban</code> banea solo. Lo armás en el módulo 14 (Seguridad): primero aprendés a <em>ver</em> el ataque, después a <em>detenerlo</em>.</div>
+
 <div class="exercise">
 <div class="xh">▸ Ejercicios prácticos</div>
 <ol>
@@ -1344,6 +1398,8 @@ Un disco al 100% rompe casi todo: servicios que no arrancan, bases que se corrom
 <li>Encontrá qué carpeta dentro de <code>/var</code> ocupa más espacio.</li>
 <li>Mostrá los últimos 5 inicios de sesión en el sistema.</li>
 <li>Revisá si hubo errores registrados desde el último arranque.</li>
+<li>Seguí en tiempo real los intentos de acceso a tu servidor, filtrando solo los fallidos.</li>
+<li>Generá el ranking de las IPs que más veces fallaron el login en tu servidor.</li>
 </ol>
 <details class="sol"><summary>Ver soluciones</summary>
 <div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
@@ -1354,6 +1410,8 @@ Un disco al 100% rompe casi todo: servicios que no arrancan, bases que se corrom
 <div class="l"><span class="pr">$</span> <span class="cmd">sudo du <span class="fl">-h --max-depth=1</span> /var | sort <span class="fl">-rh</span> | head</span>  <span class="cm"># 4</span></div>
 <div class="l"><span class="pr">$</span> <span class="cmd">last <span class="fl">-5</span></span>                              <span class="cm"># 5</span></div>
 <div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-p</span> err <span class="fl">-b</span></span>                    <span class="cm"># 6</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo tail <span class="fl">-f</span> /var/log/auth.log | grep <span class="hl">"Failed password"</span></span>   <span class="cm"># 7</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo grep <span class="hl">"Failed password"</span> /var/log/auth.log | grep <span class="fl">-oE</span> <span class="hl">"from [0-9.]+"</span> | awk <span class="hl">'{print $2}'</span> | sort | uniq <span class="fl">-c</span> | sort <span class="fl">-rn</span> | head</span>  <span class="cm"># 8</span></div>
 </div></div>
 </details>
 </div>
@@ -1816,6 +1874,283 @@ Tu servidor está listo cuando: sobrevive a un reinicio con todos los servicios 
 
 
 <script>
+/* ============ MÓDULO 16: MANEJO DE BASH (SHELL INTERACTIVA) ============ */
+reg({idx:'16',group:'Complementos',navTitle:'Manejo de Bash',html:`
+<div class="topbar"><span class="path">tty0 / complementos / <b>manejo de bash</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">16.</span> Manejo de la shell interactiva</h1>
+  <p class="lead">Escribir comandos es una cosa; hacerlo rápido es otra. Estos trucos del día a día en Bash te ahorran horas de tecleo a lo largo de una vida de administración.</p>
+</div>
+
+<h2>Historial: no reescribas lo que ya escribiste</h2>
+<p>Bash recuerda todo lo que tipeaste. Aprovechalo:</p>
+<table class="cmdtable">
+<thead><tr><th>Atajo</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>↑</code> / <code>↓</code></td><td>Recorrer comandos anteriores y siguientes.</td></tr>
+<tr><td><code>Ctrl + R</code></td><td>Búsqueda inversa: escribí un fragmento y aparece el comando que lo contenga. El más útil de todos.</td></tr>
+<tr><td><code>!!</code></td><td>Repite el último comando entero. <code>sudo !!</code> lo repite con sudo.</td></tr>
+<tr><td><code>!$</code></td><td>El último argumento del comando anterior.</td></tr>
+<tr><td><code>history</code></td><td>Lista numerada de tu historial. <code>!142</code> ejecuta el comando 142.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">el clásico "olvidé el sudo"</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">systemctl restart nginx</span></div>
+<div class="l"><span class="out">Failed to restart: access denied</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo !!</span>                    <span class="cm"># = sudo systemctl restart nginx</span></div>
+<div class="l"></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">mkdir /etc/miapp</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cd !$</span>                       <span class="cm"># cd /etc/miapp (reusa el último argumento)</span></div>
+</div></div>
+<div class="note tip"><span class="tag">Ctrl+R es magia</span>
+Presioná <code>Ctrl+R</code> y empezá a escribir "docker" (o lo que sea): Bash busca hacia atrás el último comando que lo contenga. Seguí apretando <code>Ctrl+R</code> para ir a coincidencias más viejas, y <kbd>Enter</kbd> para ejecutarlo o <kbd>→</kbd> para editarlo.</div>
+
+<h2>Atajos de teclado para editar la línea</h2>
+<p>El cursor no necesita las flechas. Estos atajos (heredados de Emacs) mueven y borran al instante:</p>
+<div class="fig">
+<svg viewBox="0 0 640 150" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12">
+  <text x="20" y="30" fill="#6b7280">línea de comando:</text>
+  <text x="20" y="58" fill="#8ec07c" font-size="15">$ </text>
+  <text x="40" y="58" fill="#e8e6e3" font-size="15">sudo systemctl restart nginx</text>
+  <line x1="40" y1="66" x2="40" y2="82" stroke="#f2a541"/><text x="40" y="98" text-anchor="middle" fill="#f2a541">Ctrl+A</text><text x="40" y="114" text-anchor="middle" fill="#9aa0ac">inicio</text>
+  <line x1="300" y1="66" x2="300" y2="82" stroke="#7cc5c9"/><text x="300" y="98" text-anchor="middle" fill="#7cc5c9">Ctrl+E</text><text x="300" y="114" text-anchor="middle" fill="#9aa0ac">fin</text>
+  <text x="20" y="140" fill="#6b7280" font-size="11">Ctrl+U borra hasta el inicio · Ctrl+K borra hasta el fin · Ctrl+W borra la palabra anterior · Ctrl+L limpia la pantalla</text>
+</svg>
+<div class="cap">Editar sin despegar las manos del teclado</div>
+</div>
+<table class="cmdtable">
+<thead><tr><th>Atajo</th><th>Acción</th></tr></thead>
+<tbody>
+<tr><td><code>Ctrl + A</code> / <code>Ctrl + E</code></td><td>Ir al inicio / fin de la línea.</td></tr>
+<tr><td><code>Ctrl + U</code> / <code>Ctrl + K</code></td><td>Borrar desde el cursor hacia el inicio / fin.</td></tr>
+<tr><td><code>Ctrl + W</code></td><td>Borrar la palabra anterior al cursor.</td></tr>
+<tr><td><code>Ctrl + L</code></td><td>Limpiar la pantalla (igual que <code>clear</code>).</td></tr>
+<tr><td><code>Tab</code></td><td>Autocompletar comando, archivo o ruta. Doble <code>Tab</code> muestra las opciones.</td></tr>
+</tbody></table>
+
+<h2>Expansiones: dejá que la shell escriba por vos</h2>
+<p>Antes de ejecutar, Bash <em>expande</em> ciertos símbolos. Entenderlos multiplica lo que hacés en una sola línea:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">expansiones habituales</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># llaves: generan combinaciones</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">mkdir <span class="fl">-p</span> proyecto/{src,tests,docs}</span>   <span class="cm"># crea las 3 carpetas</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cp config.yml config.yml{,.bak}</span>      <span class="cm"># copia rápida a config.yml.bak</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># comodines (globbing): coinciden con nombres existentes</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">rm <span class="hl">*.tmp</span></span>                          <span class="cm"># todo lo que termine en .tmp</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ls informe-202?.pdf</span>                  <span class="cm"># ? = un carácter cualquiera</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># tilde y sustitución de comandos</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cd ~</span>                               <span class="cm"># ~ = tu carpeta home</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">echo <span class="hl">"Hoy es $(date +%F)"</span></span>          <span class="cm"># $(...) inserta la salida del comando</span></div>
+</div></div>
+<div class="note warn"><span class="tag">Cuidado con los comodines</span>
+<code>*</code> lo expande la shell <em>antes</em> de ejecutar el comando. <code>rm *</code> en la carpeta equivocada borra todo sin preguntar. Antes de un <code>rm</code> con comodines, probá el mismo patrón con <code>ls</code> para ver exactamente qué va a tocar.</div>
+
+<h2>Alias: bautizá tus comandos frecuentes</h2>
+<p>Un <strong>alias</strong> es un apodo para un comando largo. Se definen así:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">alias útiles</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">alias ll=<span class="hl">'ls -lah'</span></span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">alias ..=<span class="hl">'cd ..'</span></span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">alias update=<span class="hl">'sudo apt update && sudo apt upgrade'</span></span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ll</span>                              <span class="cm"># ahora ll funciona como ls -lah</span></div>
+</div></div>
+<p>El problema: esos alias desaparecen al cerrar la terminal. Para que sean permanentes, van en tu archivo de configuración.</p>
+
+<h2>.bashrc: tu shell a medida</h2>
+<p><code>~/.bashrc</code> es un script que Bash ejecuta cada vez que abrís una terminal. Ahí ponés todo lo que quieras que esté siempre listo: alias, variables, tu prompt personalizado.</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">~/.bashrc</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># alias permanentes</span></div>
+<div class="l"><span class="cmd">alias ll=<span class="hl">'ls -lah'</span></span></div>
+<div class="l"><span class="cmd">alias gs=<span class="hl">'git status'</span></span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># agregar tu carpeta de scripts al PATH</span></div>
+<div class="l"><span class="cmd">export PATH=<span class="hl">"$HOME/bin:$PATH"</span></span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># prompt con color: usuario@host y ruta actual</span></div>
+<div class="l"><span class="cmd">export PS1=<span class="hl">'\\u@\\h:\\w\\$ '</span></span></div>
+</div></div>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">aplicar los cambios</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">nano ~/.bashrc</span>          <span class="cm"># editar y guardar</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">source ~/.bashrc</span>       <span class="cm"># recargar sin cerrar la terminal</span></div>
+</div></div>
+<div class="note info"><span class="tag">source vs abrir de nuevo</span>
+<code>source ~/.bashrc</code> (o su forma corta <code>. ~/.bashrc</code>) aplica los cambios en la sesión actual. Si no, tenés que cerrar y abrir la terminal para que se lean. Es el comando que más vas a usar mientras ajustás tu configuración.</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Usá <code>Ctrl+R</code> para encontrar y reejecutar un comando <code>ssh</code> que hayas escrito antes.</li>
+<li>Ejecutá un comando que falle por falta de permisos y volvé a lanzarlo con <code>sudo !!</code>.</li>
+<li>Creá en una sola línea la estructura de carpetas <code>web/{css,js,img}</code> usando expansión de llaves.</li>
+<li>Definí un alias <code>ports</code> que ejecute <code>ss -tuln</code>, probalo, y después hacelo permanente en tu <code>.bashrc</code>.</li>
+<li>Agregá <code>~/bin</code> a tu PATH en el <code>.bashrc</code> y recargá la configuración con <code>source</code>.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">Ctrl+R</span> <span class="cm"># luego tipear: ssh  → Enter</span>            <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo !!</span>                              <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">mkdir <span class="fl">-p</span> web/{css,js,img}</span>            <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">alias ports=<span class="hl">'ss -tuln'</span></span>              <span class="cm"># 4 (y copiar esa línea al ~/.bashrc)</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">echo <span class="hl">'export PATH="$HOME/bin:$PATH"'</span> >> ~/.bashrc && source ~/.bashrc</span>  <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 17: EL EDITOR VI ============ */
+reg({idx:'17',group:'Complementos',navTitle:'El editor vi',html:`
+<div class="topbar"><span class="path">tty0 / complementos / <b>el editor vi</b></span></div>
+<div class="mod-head">
+  <span class="level ini">nivel inicial</span>
+  <h1><span class="n">17.</span> Sobrevivir (y prosperar) en vi</h1>
+  <p class="lead">Tarde o temprano vas a entrar a un servidor donde lo único disponible para editar es <code>vi</code>. Saber lo básico deja de ser opcional: es la diferencia entre arreglar un archivo o quedar trabado.</p>
+</div>
+
+<p><code>vi</code> (y su versión moderna <code>vim</code>) está en prácticamente todos los sistemas Unix del planeta, sin instalar nada. Su fama de difícil viene de una sola idea que hay que entender bien: <strong>tiene modos</strong>.</p>
+
+<h2>La clave de todo: los dos modos</h2>
+<p>A diferencia de un editor común, en vi el teclado hace cosas distintas según el modo en el que estés:</p>
+<div class="fig">
+<svg viewBox="0 0 620 200" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="13">
+  <rect x="40" y="60" width="200" height="72" rx="10" fill="#1e2128" stroke="#f2a541" stroke-width="2"/>
+  <text x="140" y="90" text-anchor="middle" fill="#f2a541" font-weight="700" font-size="15">MODO NORMAL</text>
+  <text x="140" y="112" text-anchor="middle" fill="#9aa0ac" font-size="11">moverse, borrar, copiar</text>
+  <text x="140" y="126" text-anchor="middle" fill="#9aa0ac" font-size="11">(al abrir, estás acá)</text>
+
+  <rect x="380" y="60" width="200" height="72" rx="10" fill="#1e2128" stroke="#8ec07c" stroke-width="2"/>
+  <text x="480" y="90" text-anchor="middle" fill="#8ec07c" font-weight="700" font-size="15">MODO INSERCIÓN</text>
+  <text x="480" y="112" text-anchor="middle" fill="#9aa0ac" font-size="11">escribir texto normal</text>
+  <text x="480" y="126" text-anchor="middle" fill="#9aa0ac" font-size="11">como cualquier editor</text>
+
+  <line x1="240" y1="82" x2="378" y2="82" stroke="#8ec07c" stroke-width="1.5"/>
+  <polygon points="378,82 369,78 369,86" fill="#8ec07c"/>
+  <text x="309" y="74" text-anchor="middle" fill="#8ec07c" font-weight="700">i · a · o</text>
+
+  <line x1="378" y1="110" x2="240" y2="110" stroke="#f2a541" stroke-width="1.5"/>
+  <polygon points="240,110 249,106 249,114" fill="#f2a541"/>
+  <text x="309" y="126" text-anchor="middle" fill="#f2a541" font-weight="700">Esc</text>
+
+  <text x="310" y="170" text-anchor="middle" fill="#6b7280" font-size="11">¿perdido? Apretá Esc para volver siempre a Normal, y desde ahí escribí :q! para salir sin guardar.</text>
+</svg>
+<div class="cap">El mapa mental de vi: dos modos y cómo saltar entre ellos</div>
+</div>
+<div class="note tip"><span class="tag">La regla de oro</span>
+Si algo raro pasa cuando tecleás, apretá <kbd>Esc</kbd>. Te devuelve al modo Normal desde cualquier lado. Casi todos los problemas de un principiante en vi se resuelven con "apretá Esc y empezá de nuevo".</div>
+
+<h2>Entrar, escribir y salir</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">flujo mínimo de supervivencia</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">vi notas.txt</span>            <span class="cm"># abrir (arranca en modo Normal)</span></div>
+<div class="l"><span class="cm"># apretás  i  → entrás en modo Inserción y ya podés escribir</span></div>
+<div class="l"><span class="cm"># apretás Esc → volvés a modo Normal</span></div>
+<div class="l"><span class="cm"># escribís  :wq  y Enter → guarda (write) y sale (quit)</span></div>
+</div></div>
+<table class="cmdtable">
+<thead><tr><th>Tecla / comando</th><th>Qué hace (desde modo Normal)</th></tr></thead>
+<tbody>
+<tr><td><code>i</code> / <code>a</code></td><td>Insertar antes / después del cursor.</td></tr>
+<tr><td><code>o</code></td><td>Abrir una línea nueva debajo y empezar a escribir.</td></tr>
+<tr><td><code>Esc</code></td><td>Volver al modo Normal.</td></tr>
+<tr><td><code>:w</code></td><td>Guardar (write) sin salir.</td></tr>
+<tr><td><code>:q</code></td><td>Salir. <code>:q!</code> sale descartando los cambios.</td></tr>
+<tr><td><code>:wq</code> o <code>ZZ</code></td><td>Guardar y salir de una.</td></tr>
+</tbody></table>
+
+<h2>Moverse por el archivo</h2>
+<p>En modo Normal no usás (solo) las flechas: las letras <code>h j k l</code> mueven el cursor, y con eso las manos no salen de la fila central del teclado.</p>
+<div class="fig">
+<svg viewBox="0 0 460 130" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="14">
+  <rect x="200" y="20" width="44" height="34" rx="6" fill="#1e2128" stroke="#7cc5c9"/><text x="222" y="42" text-anchor="middle" fill="#7cc5c9" font-weight="700">k</text><text x="222" y="14" text-anchor="middle" fill="#9aa0ac" font-size="10">arriba</text>
+  <rect x="150" y="62" width="44" height="34" rx="6" fill="#1e2128" stroke="#f2a541"/><text x="172" y="84" text-anchor="middle" fill="#f2a541" font-weight="700">h</text><text x="172" y="116" text-anchor="middle" fill="#9aa0ac" font-size="10">izquierda</text>
+  <rect x="200" y="62" width="44" height="34" rx="6" fill="#1e2128" stroke="#8ec07c"/><text x="222" y="84" text-anchor="middle" fill="#8ec07c" font-weight="700">j</text><text x="222" y="116" text-anchor="middle" fill="#9aa0ac" font-size="10">abajo</text>
+  <rect x="250" y="62" width="44" height="34" rx="6" fill="#1e2128" stroke="#b48ead"/><text x="272" y="84" text-anchor="middle" fill="#b48ead" font-weight="700">l</text><text x="272" y="116" text-anchor="middle" fill="#9aa0ac" font-size="10">derecha</text>
+</svg>
+<div class="cap">h j k l: el movimiento que define a vi</div>
+</div>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Movimiento</th></tr></thead>
+<tbody>
+<tr><td><code>w</code> / <code>b</code></td><td>Saltar a la palabra siguiente / anterior.</td></tr>
+<tr><td><code>0</code> / <code>$</code></td><td>Inicio / fin de la línea actual.</td></tr>
+<tr><td><code>gg</code> / <code>G</code></td><td>Ir al comienzo / al final del archivo.</td></tr>
+<tr><td><code>:42</code></td><td>Saltar directo a la línea 42.</td></tr>
+</tbody></table>
+
+<h2>Editar: borrar, copiar, pegar, deshacer</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Acción</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td><td>Borrar el carácter bajo el cursor.</td></tr>
+<tr><td><code>dd</code></td><td>Cortar (borrar) la línea entera.</td></tr>
+<tr><td><code>yy</code></td><td>Copiar (yank) la línea entera.</td></tr>
+<tr><td><code>p</code></td><td>Pegar debajo del cursor.</td></tr>
+<tr><td><code>u</code></td><td>Deshacer. <code>Ctrl+R</code> rehace.</td></tr>
+</tbody></table>
+<div class="note info"><span class="tag">Se combinan como un idioma</span>
+Los comandos de vi se encadenan: <code>3dd</code> borra 3 líneas, <code>d$</code> borra hasta el fin de línea, <code>5j</code> baja 5 líneas. Una vez que le agarrás la lógica "número + acción + objeto", editás a una velocidad que ningún mouse alcanza.</div>
+
+<h2>Buscar y reemplazar</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">buscar / reemplazar</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># buscar: escribí / y el texto, Enter</span></div>
+<div class="l"><span class="cmd">/PermitRootLogin</span>        <span class="cm"># n = siguiente coincidencia, N = anterior</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># reemplazar en todo el archivo:</span></div>
+<div class="l"><span class="cmd">:%s/yes/no/g</span>             <span class="cm"># cambia todos los "yes" por "no"</span></div>
+<div class="l"><span class="cmd">:%s/yes/no/gc</span>            <span class="cm"># igual, pero pide confirmación en cada uno</span></div>
+</div></div>
+
+<h2>Ejemplo real: editar una config</h2>
+<p>Así se ve editar <code>sshd_config</code> para desactivar el login de root, todo dentro de vi:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">caso práctico</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo vi /etc/ssh/sshd_config</span></div>
+<div class="l"><span class="cm"># 1. buscar la línea:   /PermitRootLogin  ↵</span></div>
+<div class="l"><span class="cm"># 2. posicionado ahí, apretar  A  para editar al final de la línea</span></div>
+<div class="l"><span class="cm"># 3. corregir el valor a  no  , luego Esc</span></div>
+<div class="l"><span class="cm"># 4. guardar y salir:   :wq  ↵</span></div>
+</div></div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<div class="note tip" style="margin-top:0"><span class="tag">El mejor punto de partida</span>Ejecutá <code>vimtutor</code> en tu terminal: es un tutorial interactivo de 30 minutos que viene con vim y te hace practicar todo esto guiándote paso a paso.</div>
+<ol>
+<li>Abrí un archivo nuevo con <code>vi practica.txt</code>, escribí tres líneas, guardá y salí.</li>
+<li>Volvé a abrirlo, andá a la última línea con <code>G</code> y agregá una línea debajo con <code>o</code>.</li>
+<li>Copiá la primera línea (<code>yy</code>) y pegala al final (<code>p</code>).</li>
+<li>Borrá una línea con <code>dd</code> y después deshacé el cambio con <code>u</code>.</li>
+<li>Buscá una palabra con <code>/</code> y reemplazá todas sus apariciones por otra con <code>:%s/vieja/nueva/g</code>.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># 1) vi practica.txt → i → escribir 3 líneas → Esc → :wq</span></div>
+<div class="l"><span class="cm"># 2) vi practica.txt → G → o → escribir → Esc</span></div>
+<div class="l"><span class="cm"># 3) en la línea 1: yy → G → p</span></div>
+<div class="l"><span class="cm"># 4) dd (borra) → u (deshace)</span></div>
+<div class="l"><span class="cm"># 5) /palabra ↵  luego  :%s/palabra/otra/g ↵</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+
+<script>
 /* ---------- Render engine ---------- */
 const main=document.getElementById('main');
 const nav=document.getElementById('nav');
@@ -1906,7 +2241,9 @@ function buildHomeGrid(){
     '12':'Particionar, formatear, montar, fstab',
     '13':'Variables, bucles, funciones y scripts reales',
     '14':'SSH hardening, firewall y fail2ban',
-    '15':'Montá un servidor web completo de punta a punta'
+    '15':'Montá un servidor web completo de punta a punta',
+    '16':'Historial, atajos, alias, expansiones y .bashrc',
+    '17':'Editar archivos en el servidor: modos, moverse y guardar'
   };
   MODS.forEach((m,i)=>{
     if(m.idx==='~')return;

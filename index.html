@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tty0 — Curso de Administración de Servidores Linux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#16181d;
+  --bg-elev:#1e2128;
+  --bg-code:#0e1014;
+  --bg-side:#131519;
+  --border:#2a2e37;
+  --border-soft:#23262e;
+  --text:#e7e3da;
+  --dim:#9aa0ac;
+  --faint:#6b7280;
+  --amber:#f2a541;
+  --amber-soft:#3a2e18;
+  --green:#8ec07c;
+  --green-soft:#1e2a1c;
+  --cyan:#7cc5c9;
+  --cyan-soft:#16292b;
+  --red:#e07a5f;
+  --red-soft:#2e1c18;
+  --purple:#b48ead;
+  --sans:"Inter",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--amber);color:#16181d}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Layout ---------- */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:290px;flex-shrink:0;background:var(--bg-side);
+  border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:0 0 40px;
+}
+.main{flex:1;min-width:0;max-width:900px;margin:0 auto;padding:0 48px 120px}
+
+/* ---------- Sidebar ---------- */
+.brand{
+  padding:22px 22px 18px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg-side);z-index:5;
+}
+.brand .logo{
+  font-family:var(--mono);font-weight:800;font-size:20px;letter-spacing:-0.5px;
+  color:var(--text);display:flex;align-items:center;gap:2px;
+}
+.brand .logo .prompt{color:var(--green)}
+.brand .logo .cur{color:var(--amber);animation:blink 1.1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
+
+.progress-wrap{padding:14px 22px 6px}
+.progress-line{font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:6px}
+.progress-line b{color:var(--amber)}
+.bar{height:5px;background:var(--bg-code);border-radius:3px;overflow:hidden}
+.bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--amber));transition:width .4s ease}
+
+nav{padding:8px 0}
+.nav-group{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--faint);padding:16px 22px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 22px;font-size:13.5px;color:var(--dim);cursor:pointer;
+  border-left:2px solid transparent;transition:.15s;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.02)}
+.nav-item.active{color:var(--amber);border-left-color:var(--amber);background:rgba(242,165,65,.06)}
+.nav-item .idx{font-family:var(--mono);font-size:11px;color:var(--faint);width:20px;flex-shrink:0}
+.nav-item.active .idx{color:var(--amber)}
+.nav-item .check{margin-left:auto;color:var(--green);font-size:12px;opacity:0;transition:.2s}
+.nav-item.done .check{opacity:1}
+.nav-item.done .idx{color:var(--green)}
+
+/* ---------- Content ---------- */
+.module{display:none;animation:fade .35s ease}
+.module.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.topbar{
+  position:sticky;top:0;background:rgba(22,24,29,.85);backdrop-filter:blur(10px);
+  z-index:4;margin:0 -48px 0;padding:14px 48px;border-bottom:1px solid var(--border-soft);
+  display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:12px;color:var(--faint)
+}
+.topbar .path{color:var(--dim)}
+.topbar .path b{color:var(--amber)}
+
+.mod-head{padding:44px 0 8px}
+.level{
+  display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;
+  padding:3px 10px;border-radius:20px;letter-spacing:.5px;margin-bottom:18px;
+}
+.level.ini{background:var(--green-soft);color:var(--green);border:1px solid #2f4a2c}
+.level.int{background:var(--cyan-soft);color:var(--cyan);border:1px solid #234a4d}
+.level.adv{background:var(--red-soft);color:var(--red);border:1px solid #4d2b22}
+h1{font-family:var(--mono);font-weight:800;font-size:33px;line-height:1.15;letter-spacing:-1px;margin-bottom:14px}
+h1 .n{color:var(--amber)}
+.lead{font-size:18px;color:var(--dim);max-width:70ch;line-height:1.6}
+
+h2{font-family:var(--mono);font-weight:700;font-size:22px;margin:46px 0 14px;letter-spacing:-.5px;display:flex;align-items:center;gap:12px}
+h2::before{content:"##";color:var(--faint);font-weight:400;font-size:18px}
+h3{font-family:var(--mono);font-weight:600;font-size:17px;margin:30px 0 10px;color:var(--amber)}
+p{margin:12px 0;color:#d8d4cb}
+strong{color:var(--text);font-weight:600}
+.main ul,.main ol{margin:12px 0 12px 8px;padding-left:22px}
+.main li{margin:6px 0;color:#d8d4cb}
+code:not(pre code){
+  font-family:var(--mono);font-size:.88em;background:var(--bg-code);
+  color:var(--amber);padding:2px 6px;border-radius:5px;border:1px solid var(--border-soft);
+}
+
+/* ---------- Terminal block ---------- */
+.term{
+  background:var(--bg-code);border:1px solid var(--border);border-radius:var(--radius);
+  margin:20px 0;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.35);
+}
+.term-bar{
+  display:flex;align-items:center;gap:8px;padding:9px 14px;
+  background:#1a1d22;border-bottom:1px solid var(--border);
+}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#e06c60}.dot.y{background:#e0b45f}.dot.g{background:#7fc97f}
+.term-title{margin-left:8px;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.term-body{padding:16px 18px;font-family:var(--mono);font-size:13.5px;line-height:1.7;overflow-x:auto}
+.term-body .l{white-space:pre}
+.pr{color:var(--green)}          /* prompt */
+.cmd{color:var(--text)}          /* comando escrito */
+.fl{color:var(--amber)}          /* flags */
+.out{color:var(--dim)}           /* salida */
+.cm{color:var(--faint);font-style:italic} /* comentario */
+.ok{color:var(--green)}
+.warn{color:var(--red)}
+.hl{color:var(--cyan)}
+
+/* ---------- Callouts ---------- */
+.note{
+  border-radius:var(--radius);padding:14px 16px 14px 18px;margin:20px 0;
+  border:1px solid var(--border);border-left-width:3px;font-size:14.5px;
+  background:var(--bg-elev);
+}
+.note .tag{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:5px}
+.note.tip{border-left-color:var(--green)}.note.tip .tag{color:var(--green)}
+.note.warn{border-left-color:var(--red)}.note.warn .tag{color:var(--red)}
+.note.info{border-left-color:var(--cyan)}.note.info .tag{color:var(--cyan)}
+
+/* ---------- Command table ---------- */
+.cmdtable{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px}
+.cmdtable th{
+  text-align:left;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:1px;color:var(--faint);padding:8px 12px;border-bottom:1px solid var(--border)
+}
+.cmdtable td{padding:9px 12px;border-bottom:1px solid var(--border-soft);vertical-align:top}
+.cmdtable td:first-child{white-space:nowrap}
+.cmdtable code{font-size:13px}
+.cmdtable tr:hover td{background:rgba(255,255,255,.015)}
+
+/* ---------- Exercise ---------- */
+.exercise{
+  background:linear-gradient(180deg,rgba(242,165,65,.05),transparent);
+  border:1px solid var(--amber-soft);border-radius:var(--radius);padding:20px 22px;margin:24px 0;
+}
+.exercise .xh{font-family:var(--mono);font-weight:700;color:var(--amber);font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.exercise ol{counter-reset:x;list-style:none;padding-left:0;margin-top:12px}
+.exercise ol li{counter-increment:x;position:relative;padding-left:34px;margin:10px 0}
+.exercise ol li::before{
+  content:"$"counter(x);position:absolute;left:0;top:0;font-family:var(--mono);
+  font-size:12px;color:var(--amber);font-weight:700;background:var(--amber-soft);
+  border-radius:5px;padding:1px 6px;
+}
+details.sol{margin-top:16px;border-top:1px dashed var(--border);padding-top:12px}
+details.sol summary{font-family:var(--mono);font-size:13px;color:var(--green);cursor:pointer;font-weight:600}
+details.sol summary:hover{color:var(--amber)}
+details.sol[open] summary{margin-bottom:10px}
+
+/* ---------- Diagram ---------- */
+.diagram{margin:26px 0;text-align:center}
+.diagram svg{max-width:100%;height:auto}
+.diagram .cap{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:8px}
+
+/* ---------- Footer nav ---------- */
+.pager{display:flex;justify-content:space-between;gap:16px;margin-top:56px;padding-top:24px;border-top:1px solid var(--border)}
+.pager button{
+  font-family:var(--mono);font-size:13px;background:var(--bg-elev);color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;cursor:pointer;
+  transition:.15s;display:flex;flex-direction:column;gap:2px;text-align:left;max-width:48%;
+}
+.pager button:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}
+.pager button:disabled{opacity:.3;cursor:not-allowed}
+.pager button.next{text-align:right;margin-left:auto}
+.pager button .k{font-size:10px;color:var(--faint)}
+.mark-done{
+  margin:36px auto 0;display:block;font-family:var(--mono);font-size:13px;cursor:pointer;
+  background:var(--green-soft);color:var(--green);border:1px solid #2f4a2c;border-radius:var(--radius);
+  padding:11px 22px;transition:.15s
+}
+.mark-done:hover{background:var(--green);color:#16181d}
+.mark-done.is-done{background:transparent;color:var(--faint);border-color:var(--border)}
+
+/* ---------- Home / intro ---------- */
+.hero{padding:64px 0 20px}
+.hero .kicker{font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:1px;margin-bottom:14px}
+.hero h1{font-size:42px}
+.hero .lead{font-size:19px;margin-top:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:34px 0}
+.card{background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:.15s;cursor:pointer}
+.card:hover{border-color:var(--amber);transform:translateY(-2px)}
+.card .cn{font-family:var(--mono);font-size:12px;color:var(--faint)}
+.card .ct{font-weight:600;margin:6px 0 4px;font-size:15px}
+.card .cd{font-size:13px;color:var(--dim);line-height:1.5}
+
+.mobile-toggle{display:none}
+kbd{font-family:var(--mono);font-size:.85em;background:var(--bg-elev);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 7px;color:var(--text)}
+
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-300px;z-index:50;transition:.25s;box-shadow:20px 0 60px rgba(0,0,0,.5)}
+  .sidebar.open{left:0}
+  .main{padding:0 20px 90px}
+  .topbar{margin:0 -20px;padding:12px 20px}
+  .mod-head{padding:64px 0 8px}
+  .mobile-toggle{
+    display:flex;position:fixed;top:12px;left:12px;z-index:60;
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;
+    width:42px;height:42px;align-items:center;justify-content:center;cursor:pointer;
+    font-family:var(--mono);color:var(--amber);font-size:18px
+  }
+  h1{font-size:26px}.hero h1{font-size:30px}
+  .backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40}
+  .backdrop.show{display:block}
+}
+</style>
+</head>
+<body>
+<div class="mobile-toggle" onclick="toggleSide()">≡</div>
+<div class="backdrop" id="backdrop" onclick="toggleSide()"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><span class="prompt">~$</span>&nbsp;tty0<span class="cur">_</span></div>
+      <div class="sub">Administración de servidores Linux</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-line"><span>progreso</span><span><b id="pdone">0</b>/<span id="ptot">0</span> módulos</span></div>
+      <div class="bar"><span id="pbar"></span></div>
+    </div>
+    <nav id="nav"></nav>
+  </aside>
+
+  <main class="main" id="main"><!-- MODULES INJECTED --></main>
+</div>
+<script>
+/* módulos se registran vía JS al final del archivo */
+const MODS=[];
+function reg(m){MODS.push(m)}
+</script>
+<script>
+/* ============ PORTADA ============ */
+reg({idx:'~',group:'Fundamentos',navTitle:'Inicio',html:`
+<div class="hero">
+  <div class="kicker">// curso interactivo · 15 módulos · inicial → avanzado</div>
+  <h1>Administrá un servidor<br>Linux desde <span class="n">cero</span>.</h1>
+  <p class="lead">Un recorrido práctico por la terminal: desde escribir tu primer comando hasta monitorear servicios, configurar redes, escribir scripts y asegurar un servidor de producción. Cada módulo trae explicaciones, diagramas, ejemplos reales de terminal y ejercicios con solución.</p>
+</div>
+<div class="note info"><span class="tag">Cómo usar este curso</span>
+Navegá con la barra lateral o con las flechas <kbd>←</kbd> <kbd>→</kbd> del teclado. Marcá cada módulo como completado para seguir tu avance. Lo ideal: tené una terminal abierta al lado y ejecutá cada comando vos mismo. La única forma de aprender la consola es usándola.</div>
+
+<h2>Montá tu laboratorio primero</h2>
+<p>No practiques en un servidor real hasta tener soltura. Vas a romper cosas, y está perfecto: para eso es el laboratorio. Elegí una opción:</p>
+<ul>
+<li><strong>Máquina virtual</strong> (recomendado): instalá <a href="https://www.virtualbox.org">VirtualBox</a> y una imagen de <strong>Ubuntu Server</strong> o <strong>Debian</strong>. Es el entorno más parecido a un servidor real.</li>
+<li><strong>WSL2</strong> en Windows: <code>wsl --install</code> en PowerShell te da un Ubuntu funcional en minutos.</li>
+<li><strong>Contenedor Docker</strong>: <code>docker run -it ubuntu bash</code> para pruebas rápidas y descartables.</li>
+<li><strong>VPS económico</strong>: cuando tengas confianza, un servidor real de bajo costo es la mejor práctica.</li>
+</ul>
+
+<h2>Recorrido</h2>
+<div class="grid" id="homegrid"></div>
+`});
+
+/* ============ MÓDULO 1 ============ */
+reg({idx:'01',group:'Fundamentos',navTitle:'La terminal',html:`
+<div class="topbar"><span class="path">tty0 / fundamentos / <b>la terminal</b></span></div>
+<div class="mod-head">
+  <span class="level ini">nivel inicial</span>
+  <h1><span class="n">01.</span> La terminal y tu primer comando</h1>
+  <p class="lead">Qué es la shell, cómo se estructura un comando y cómo pedir ayuda sin depender de internet.</p>
+</div>
+
+<h2>Terminal, shell, bash: ¿qué es qué?</h2>
+<p>Estos tres términos se confunden todo el tiempo:</p>
+<ul>
+<li>La <strong>terminal</strong> (o emulador de terminal) es la ventana donde escribís texto. Es el "monitor y teclado" del mundo de la consola.</li>
+<li>La <strong>shell</strong> es el programa que interpreta lo que escribís y lo ejecuta. Es quien realmente entiende tus comandos.</li>
+<li><strong>Bash</strong> (<em>Bourne Again Shell</em>) es la shell más común en servidores Linux. Hay otras: <code>zsh</code>, <code>sh</code>, <code>fish</code>.</li>
+</ul>
+<p>Cuando abrís una terminal, ves el <strong>prompt</strong>: una línea que te indica que la shell está esperando órdenes.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 640 130" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+  <rect x="10" y="20" width="620" height="90" rx="8" fill="#0e1014" stroke="#2a2e37"/>
+  <text x="34" y="70" font-size="20" fill="#8ec07c">ana</text>
+  <text x="70" y="70" font-size="20" fill="#6b7280">@</text>
+  <text x="82" y="70" font-size="20" fill="#7cc5c9">servidor</text>
+  <text x="184" y="70" font-size="20" fill="#6b7280">:</text>
+  <text x="196" y="70" font-size="20" fill="#b48ead">~</text>
+  <text x="214" y="70" font-size="20" fill="#f2a541">$</text>
+  <text x="234" y="70" font-size="20" fill="#e7e3da">_</text>
+  <text x="34" y="98" font-size="11" fill="#6b7280">usuario</text>
+  <text x="82" y="98" font-size="11" fill="#6b7280">host (servidor)</text>
+  <text x="196" y="98" font-size="11" fill="#6b7280">carpeta actual (~ = home)</text>
+  <line x1="242" y1="55" x2="242" y2="45" stroke="#f2a541"/>
+  <text x="250" y="42" font-size="11" fill="#f2a541">acá escribís</text>
+</svg>
+<div class="cap">Anatomía del prompt: quién sos, dónde estás y dónde va tu comando</div>
+</div>
+<div class="note info"><span class="tag">El símbolo importa</span>
+Un prompt que termina en <code>$</code> indica un usuario normal. Si termina en <code>#</code>, estás como <strong>root</strong> (administrador con poder total). Ver <code>#</code> es la señal de "cuidado, cada error pesa el doble".</div>
+
+<h2>La estructura de un comando</h2>
+<p>Casi todos los comandos siguen el mismo patrón:</p>
+<div class="diagram">
+<svg viewBox="0 0 640 150" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+  <text x="40" y="60" font-size="22" fill="#8ec07c">ls</text>
+  <text x="95" y="60" font-size="22" fill="#f2a541">-l -h</text>
+  <text x="215" y="60" font-size="22" fill="#7cc5c9">/var/log</text>
+  <rect x="30" y="38" width="45" height="34" rx="5" fill="none" stroke="#8ec07c"/>
+  <rect x="88" y="38" width="98" height="34" rx="5" fill="none" stroke="#f2a541"/>
+  <rect x="205" y="38" width="118" height="34" rx="5" fill="none" stroke="#7cc5c9"/>
+  <text x="52" y="100" font-size="13" fill="#8ec07c" text-anchor="middle">comando</text>
+  <text x="137" y="100" font-size="13" fill="#f2a541" text-anchor="middle">opciones/flags</text>
+  <text x="264" y="100" font-size="13" fill="#7cc5c9" text-anchor="middle">argumento</text>
+  <text x="52" y="118" font-size="11" fill="#6b7280" text-anchor="middle">qué hacer</text>
+  <text x="137" y="118" font-size="11" fill="#6b7280" text-anchor="middle">cómo hacerlo</text>
+  <text x="264" y="118" font-size="11" fill="#6b7280" text-anchor="middle">sobre qué</text>
+</svg>
+<div class="cap">comando · opciones · argumento</div>
+</div>
+<p>Las <strong>opciones</strong> modifican el comportamiento. Vienen en dos formas: cortas con un guion (<code>-l</code>) y largas con dos (<code>--all</code>). Muchas veces las cortas se combinan: <code>-lh</code> equivale a <code>-l -h</code>. Los <strong>argumentos</strong> son sobre qué actúa el comando (un archivo, una carpeta, un texto).</p>
+
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">bash — primer contacto</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">whoami</span></div>
+<div class="l"><span class="out">ana</span></div>
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">date</span></div>
+<div class="l"><span class="out">mar 21 jul 2026 10:14:02 -03</span></div>
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">uname <span class="fl">-a</span></span>  <span class="cm"># info del sistema y kernel</span></div>
+<div class="l"><span class="out">Linux servidor 6.8.0-40-generic x86_64 GNU/Linux</span></div>
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">echo <span class="hl">"hola consola"</span></span></div>
+<div class="l"><span class="out">hola consola</span></div>
+</div></div>
+
+<h2>Pedir ayuda: tu red de seguridad</h2>
+<p>Nadie memoriza todas las opciones. Los buenos administradores saben <em>buscar</em>. Tres herramientas para eso:</p>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Para qué sirve</th></tr></thead>
+<tbody>
+<tr><td><code>man ls</code></td><td>Manual completo del comando. Se navega con flechas y se sale con <kbd>q</kbd>. Buscá dentro con <code>/palabra</code>.</td></tr>
+<tr><td><code>ls --help</code></td><td>Resumen rápido de opciones. Más corto que el manual.</td></tr>
+<tr><td><code>tldr ls</code></td><td>Ejemplos prácticos y directos (se instala aparte). Ideal cuando el <code>man</code> te abruma.</td></tr>
+<tr><td><code>type cd</code> · <code>which ls</code></td><td>Te dice qué es un comando y dónde está el programa.</td></tr>
+</tbody></table>
+<div class="note tip"><span class="tag">Atajos que ahorran horas</span>
+<kbd>Tab</kbd> autocompleta comandos y rutas (apretá dos veces para ver opciones). <kbd>↑</kbd> / <kbd>↓</kbd> recorren el historial. <kbd>Ctrl</kbd>+<kbd>R</kbd> busca en el historial. <kbd>Ctrl</kbd>+<kbd>C</kbd> cancela el comando actual. <kbd>Ctrl</kbd>+<kbd>L</kbd> limpia la pantalla (como <code>clear</code>).</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Averiguá con qué usuario estás logueado y en qué carpeta estás parado.</li>
+<li>Mostrá la versión del kernel de tu sistema.</li>
+<li>Abrí el manual de <code>echo</code>, buscá dentro qué hace la opción <code>-n</code> y salí del manual.</li>
+<li>Hacé que la terminal imprima tu nombre sin salto de línea al final.</li>
+<li>Usá <kbd>Ctrl</kbd>+<kbd>R</kbd> y escribí "date" para reencontrar un comando que ya ejecutaste.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">whoami</span>  <span class="cm"># 1) usuario</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">pwd</span>     <span class="cm">#    carpeta actual</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">uname <span class="fl">-r</span></span>  <span class="cm"># 2) solo versión del kernel</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">man echo</span>  <span class="cm"># 3) escribí /-n y Enter; luego q</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">echo <span class="fl">-n</span> <span class="hl">"Ana"</span></span>  <span class="cm"># 4) sin salto final</span></div>
+<div class="l"><span class="cm"># 5) Ctrl+R, tipeá "date", Enter para ejecutarlo</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 2 ============ */
+reg({idx:'02',group:'Fundamentos',navTitle:'Archivos y carpetas',html:`
+<div class="topbar"><span class="path">tty0 / fundamentos / <b>archivos y carpetas</b></span></div>
+<div class="mod-head">
+  <span class="level ini">nivel inicial</span>
+  <h1><span class="n">02.</span> Moverse y manipular archivos</h1>
+  <p class="lead">Recorrer el árbol de directorios, crear, copiar, mover y borrar. La base de todo lo demás.</p>
+</div>
+
+<h2>El árbol de Linux</h2>
+<p>En Linux <strong>todo cuelga de una única raíz</strong>: <code>/</code>. No hay "C:" ni "D:". Cada carpeta del sistema tiene un propósito definido por el estándar FHS (<em>Filesystem Hierarchy Standard</em>).</p>
+<div class="diagram">
+<svg viewBox="0 0 620 260" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="13">
+  <text x="20" y="30" fill="#f2a541" font-weight="700">/</text>
+  <text x="70" y="30" fill="#6b7280" font-size="11">raíz de todo el sistema</text>
+  <g fill="#e7e3da">
+    <text x="45" y="60">├─ <tspan fill="#7cc5c9">bin/</tspan> <tspan fill="#6b7280" font-size="11">  programas esenciales (ls, cp…)</tspan></text>
+    <text x="45" y="85">├─ <tspan fill="#7cc5c9">etc/</tspan> <tspan fill="#6b7280" font-size="11">  archivos de configuración</tspan></text>
+    <text x="45" y="110">├─ <tspan fill="#7cc5c9">home/</tspan> <tspan fill="#6b7280" font-size="11"> carpetas de los usuarios</tspan></text>
+    <text x="75" y="132">│   └─ <tspan fill="#8ec07c">ana/</tspan> <tspan fill="#6b7280" font-size="11"> tu espacio personal (~)</tspan></text>
+    <text x="45" y="157">├─ <tspan fill="#7cc5c9">var/</tspan> <tspan fill="#6b7280" font-size="11">  datos variables: logs, webs, colas</tspan></text>
+    <text x="75" y="179">│   └─ <tspan fill="#8ec07c">log/</tspan> <tspan fill="#6b7280" font-size="11"> registros del sistema</tspan></text>
+    <text x="45" y="204">├─ <tspan fill="#7cc5c9">usr/</tspan> <tspan fill="#6b7280" font-size="11">  programas y librerías instaladas</tspan></text>
+    <text x="45" y="229">├─ <tspan fill="#7cc5c9">tmp/</tspan> <tspan fill="#6b7280" font-size="11">  temporales (se borran al reiniciar)</tspan></text>
+    <text x="45" y="254">└─ <tspan fill="#7cc5c9">root/</tspan> <tspan fill="#6b7280" font-size="11"> home del superusuario</tspan></text>
+  </g>
+</svg>
+<div class="cap">Los directorios que más vas a tocar como administrador</div>
+</div>
+
+<h2>Rutas: absolutas vs relativas</h2>
+<ul>
+<li>Una <strong>ruta absoluta</strong> empieza en <code>/</code> y es completa: <code>/var/log/syslog</code>. Funciona estés donde estés.</li>
+<li>Una <strong>ruta relativa</strong> parte de tu carpeta actual: <code>log/syslog</code> o <code>../etc</code>.</li>
+</ul>
+<p>Atajos clave: <code>.</code> es la carpeta actual, <code>..</code> es la carpeta de arriba, <code>~</code> es tu home y <code>-</code> es la carpeta anterior donde estabas.</p>
+
+<h2>Navegar</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">navegación</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">pwd</span>            <span class="cm"># ¿dónde estoy?</span></div>
+<div class="l"><span class="out">/home/ana</span></div>
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">ls <span class="fl">-lah</span></span>       <span class="cm"># listar detallado + ocultos + legible</span></div>
+<div class="l"><span class="out">drwxr-xr-x 3 ana ana 4.0K jul 21 10:20 .</span></div>
+<div class="l"><span class="out">-rw-r--r-- 1 ana ana  220 jul 10 09:00 .bashrc</span></div>
+<div class="l"><span class="out">drwxr-xr-x 2 ana ana 4.0K jul 21 10:20 proyectos</span></div>
+<div class="l"><span class="pr">ana@servidor:~$</span> <span class="cmd">cd /var/log</span>    <span class="cm"># ir a ruta absoluta</span></div>
+<div class="l"><span class="pr">ana@servidor:/var/log$</span> <span class="cmd">cd -</span>    <span class="cm"># volver a la anterior</span></div>
+<div class="l"><span class="out">/home/ana</span></div>
+</div></div>
+
+<h2>Crear, copiar, mover, borrar</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>mkdir docs</code></td><td>Crea una carpeta. Con <code>-p</code> crea rutas anidadas: <code>mkdir -p a/b/c</code>.</td></tr>
+<tr><td><code>touch nota.txt</code></td><td>Crea un archivo vacío (o actualiza su fecha).</td></tr>
+<tr><td><code>cp a.txt b.txt</code></td><td>Copia. Para carpetas: <code>cp -r origen/ destino/</code>.</td></tr>
+<tr><td><code>mv a.txt docs/</code></td><td>Mueve. También <strong>renombra</strong>: <code>mv viejo.txt nuevo.txt</code>.</td></tr>
+<tr><td><code>rm nota.txt</code></td><td>Borra. Carpetas con <code>-r</code>. <strong>No hay papelera.</strong></td></tr>
+<tr><td><code>rmdir docs</code></td><td>Borra una carpeta solo si está vacía (más seguro que <code>rm -r</code>).</td></tr>
+</tbody></table>
+<div class="note warn"><span class="tag">Peligro real</span>
+<code>rm -rf</code> borra todo lo que le indiques, recursivamente y sin preguntar. No existe deshacer. Jamás lo ejecutes como root sobre rutas que no releíste dos veces. El clásico desastre es <code>rm -rf /</code> con un espacio de más. Usá <code>rm -i</code> (pregunta antes) mientras aprendés.</div>
+
+<h2>Ver el contenido de un archivo</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Cuándo usarlo</th></tr></thead>
+<tbody>
+<tr><td><code>cat archivo</code></td><td>Vuelca todo de golpe. Bien para archivos cortos.</td></tr>
+<tr><td><code>less archivo</code></td><td>Lo abre paginado (flechas para moverte, <kbd>q</kbd> para salir). Ideal para archivos largos y logs.</td></tr>
+<tr><td><code>head -n 20 archivo</code></td><td>Las primeras 20 líneas.</td></tr>
+<tr><td><code>tail -n 20 archivo</code></td><td>Las últimas 20. Con <code>-f</code> sigue el archivo en vivo (indispensable para logs).</td></tr>
+</tbody></table>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Creá en tu home la estructura <code>laboratorio/practica/dia1</code> en un solo comando.</li>
+<li>Dentro de <code>dia1</code>, creá tres archivos vacíos: <code>a.txt</code>, <code>b.txt</code>, <code>c.txt</code>.</li>
+<li>Copiá <code>a.txt</code> a la carpeta <code>practica</code> con el nombre <code>respaldo.txt</code>.</li>
+<li>Renombrá <code>b.txt</code> a <code>notas.txt</code> y luego movelo a <code>laboratorio</code>.</li>
+<li>Listá <code>laboratorio</code> de forma recursiva para ver todo el árbol que armaste.</li>
+<li>Borrá la carpeta <code>dia1</code> con todo su contenido.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">mkdir <span class="fl">-p</span> ~/laboratorio/practica/dia1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cd ~/laboratorio/practica/dia1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">touch a.txt b.txt c.txt</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cp a.txt ../respaldo.txt</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">mv b.txt notas.txt</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">mv notas.txt ~/laboratorio/</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ls <span class="fl">-R</span> ~/laboratorio</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">rm <span class="fl">-r</span> ~/laboratorio/practica/dia1</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 3: PERMISOS ============ */
+reg({idx:'03',group:'Fundamentos',navTitle:'Permisos',html:`
+<div class="topbar"><span class="path">tty0 / fundamentos / <b>permisos</b></span></div>
+<div class="mod-head">
+  <span class="level ini">nivel inicial</span>
+  <h1><span class="n">03.</span> Permisos y propiedad</h1>
+  <p class="lead">Quién puede leer, escribir y ejecutar qué. El corazón de la seguridad en Linux.</p>
+</div>
+
+<h2>Leer los permisos</h2>
+<p>Cuando hacés <code>ls -l</code>, esa cadena de letras al inicio de cada línea es el mapa de permisos. Se divide en tres grupos de tres:</p>
+<div class="diagram">
+<svg viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+  <text x="30" y="55" font-size="30" letter-spacing="4">
+    <tspan fill="#b48ead">-</tspan><tspan fill="#8ec07c">rwx</tspan><tspan fill="#f2a541">r-x</tspan><tspan fill="#7cc5c9">r--</tspan>
+  </text>
+  <rect x="26" y="30" width="30" height="34" fill="none" stroke="#b48ead"/>
+  <rect x="62" y="30" width="80" height="34" fill="none" stroke="#8ec07c"/>
+  <rect x="148" y="30" width="78" height="34" fill="none" stroke="#f2a541"/>
+  <rect x="232" y="30" width="70" height="34" fill="none" stroke="#7cc5c9"/>
+  <text x="41" y="95" font-size="11" fill="#b48ead" text-anchor="middle">tipo</text>
+  <text x="102" y="95" font-size="11" fill="#8ec07c" text-anchor="middle">dueño</text>
+  <text x="187" y="95" font-size="11" fill="#f2a541" text-anchor="middle">grupo</text>
+  <text x="267" y="95" font-size="11" fill="#7cc5c9" text-anchor="middle">otros</text>
+  <g font-size="13" fill="#e7e3da">
+    <text x="360" y="40"><tspan fill="#8ec07c" font-weight="700">r</tspan> = leer (read) — valor 4</text>
+    <text x="360" y="62"><tspan fill="#8ec07c" font-weight="700">w</tspan> = escribir (write) — valor 2</text>
+    <text x="360" y="84"><tspan fill="#8ec07c" font-weight="700">x</tspan> = ejecutar (execute) — valor 1</text>
+  </g>
+  <text x="30" y="140" font-size="12" fill="#6b7280">El primer carácter indica el tipo:</text>
+  <g font-size="12" fill="#e7e3da">
+    <text x="30" y="162"><tspan fill="#b48ead">-</tspan> archivo normal   <tspan fill="#b48ead">d</tspan> directorio   <tspan fill="#b48ead">l</tspan> enlace simbólico</text>
+  </g>
+  <text x="30" y="195" font-size="12" fill="#6b7280">Sumando valores: rwx = 4+2+1 = <tspan fill="#f2a541">7</tspan> · r-x = 4+1 = <tspan fill="#f2a541">5</tspan> · r-- = <tspan fill="#f2a541">4</tspan></text>
+</svg>
+<div class="cap">rwx r-x r-- se lee como el número octal 754</div>
+</div>
+
+<h2>Cambiar permisos con chmod</h2>
+<p>Hay dos notaciones. La <strong>octal</strong> (números) es rápida para asignar todo de una:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">chmod octal</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">755</span> script.sh</span>   <span class="cm"># dueño: rwx · grupo: r-x · otros: r-x</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">644</span> nota.txt</span>    <span class="cm"># dueño: rw- · grupo: r-- · otros: r--</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">600</span> clave.pem</span>   <span class="cm"># solo el dueño lee y escribe</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">-R 755</span> web/</span>     <span class="cm"># recursivo sobre toda la carpeta</span></div>
+</div></div>
+<p>La <strong>simbólica</strong> es mejor para ajustes puntuales: <code>u</code>=user, <code>g</code>=group, <code>o</code>=others, <code>a</code>=all; con <code>+</code> agrega, <code>-</code> quita, <code>=</code> fija.</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">chmod simbólico</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">+x</span> script.sh</span>      <span class="cm"># dar permiso de ejecución a todos</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">u+x,go-w</span> app</span>     <span class="cm"># dueño ejecuta; grupo y otros no escriben</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod <span class="fl">o-r</span> privado.txt</span>   <span class="cm"># los "otros" ya no pueden leerlo</span></div>
+</div></div>
+
+<h2>Cambiar el dueño con chown</h2>
+<p>Un archivo pertenece a un <strong>usuario</strong> y a un <strong>grupo</strong>. Para cambiarlos necesitás privilegios (<code>sudo</code>):</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">chown / chgrp</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo chown ana archivo.txt</span>        <span class="cm"># cambiar dueño</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo chown ana:desarrollo app.js</span>   <span class="cm"># dueño ana, grupo desarrollo</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo chown <span class="fl">-R</span> www-data:www-data /var/www</span>  <span class="cm"># típico en servidores web</span></div>
+</div></div>
+<div class="note tip"><span class="tag">Regla mental para directorios</span>
+En una carpeta, <code>x</code> no significa "ejecutar" sino "poder entrar" (hacer <code>cd</code>). Por eso los directorios suelen ser <code>755</code>: todos pueden entrar y listar, pero solo el dueño modifica.</div>
+
+<h2>Permisos especiales</h2>
+<table class="cmdtable">
+<thead><tr><th>Bit</th><th>Efecto</th></tr></thead>
+<tbody>
+<tr><td>SUID (<code>4000</code>)</td><td>Un programa se ejecuta con los permisos de su dueño, no de quien lo corre. Ej: <code>passwd</code>.</td></tr>
+<tr><td>SGID (<code>2000</code>)</td><td>En carpetas: los archivos nuevos heredan el grupo de la carpeta. Útil para trabajo compartido.</td></tr>
+<tr><td>Sticky bit (<code>1000</code>)</td><td>En carpetas compartidas como <code>/tmp</code>: cada usuario solo puede borrar sus propios archivos.</td></tr>
+</tbody></table>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Creá <code>reporte.sh</code>. Mirá sus permisos por defecto con <code>ls -l</code>.</li>
+<li>Dale permisos <code>750</code> usando notación octal. Verificá el resultado.</li>
+<li>Ahora lográ lo mismo (rwxr-x---) pero usando notación simbólica desde un archivo <code>644</code>.</li>
+<li>Creá <code>secreto.txt</code> con permisos tales que solo vos puedas leerlo y escribirlo (nadie más nada).</li>
+<li>¿Qué número octal representa <code>rw-r-----</code>? Comprobalo aplicándolo a un archivo.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">touch reporte.sh; ls <span class="fl">-l</span> reporte.sh</span>  <span class="cm"># 1) suele ser 644</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod 750 reporte.sh</span>                <span class="cm"># 2)</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod u+x,g+x,g-w,o-r reporte.sh</span>    <span class="cm"># 3) partiendo de 644</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">touch secreto.txt; chmod 600 secreto.txt</span>  <span class="cm"># 4)</span></div>
+<div class="l"><span class="cm"># 5) rw-=6, r--=4, ---=0  →  640</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod 640 secreto.txt</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 4: USUARIOS ============ */
+reg({idx:'04',group:'Gestión del sistema',navTitle:'Usuarios y grupos',html:`
+<div class="topbar"><span class="path">tty0 / gestión / <b>usuarios y grupos</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">04.</span> Usuarios, grupos y sudo</h1>
+  <p class="lead">Crear cuentas, organizarlas en grupos y delegar privilegios sin regalar la contraseña de root.</p>
+</div>
+
+<h2>Dónde viven los usuarios</h2>
+<p>La información de las cuentas está en tres archivos de texto plano:</p>
+<table class="cmdtable">
+<thead><tr><th>Archivo</th><th>Contiene</th></tr></thead>
+<tbody>
+<tr><td><code>/etc/passwd</code></td><td>Un usuario por línea: nombre, UID, GID, home, shell. Legible por todos.</td></tr>
+<tr><td><code>/etc/shadow</code></td><td>Las contraseñas cifradas y su política de caducidad. Solo root.</td></tr>
+<tr><td><code>/etc/group</code></td><td>Los grupos y sus miembros.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">/etc/passwd</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">grep ana /etc/passwd</span></div>
+<div class="l"><span class="out">ana:x:1001:1001:Ana Perez:/home/ana:/bin/bash</span></div>
+<div class="l"><span class="out">     │  │    │    │        │          └─ shell de login</span></div>
+<div class="l"><span class="out">     │  │    │    │        └─ carpeta home</span></div>
+<div class="l"><span class="out">     │  │    │    └─ GID (grupo principal)</span></div>
+<div class="l"><span class="out">     │  │    └─ UID (id de usuario)</span></div>
+<div class="l"><span class="out">     │  └─ x = la contraseña está en shadow</span></div>
+<div class="l"><span class="out">     └─ nombre de usuario</span></div>
+</div></div>
+
+<h2>Crear y gestionar usuarios</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>sudo adduser juan</code></td><td>Crea usuario de forma interactiva (home, contraseña, datos). Recomendado en Debian/Ubuntu.</td></tr>
+<tr><td><code>sudo useradd -m -s /bin/bash juan</code></td><td>Versión de bajo nivel: <code>-m</code> crea el home, <code>-s</code> fija la shell.</td></tr>
+<tr><td><code>sudo passwd juan</code></td><td>Establece o cambia la contraseña de juan.</td></tr>
+<tr><td><code>sudo usermod -aG sudo juan</code></td><td>Agrega a juan al grupo <code>sudo</code>. El <code>-a</code> (append) es <strong>crucial</strong>: sin él, reemplaza sus grupos.</td></tr>
+<tr><td><code>sudo deluser juan</code></td><td>Elimina el usuario. Con <code>--remove-home</code> borra también su carpeta.</td></tr>
+<tr><td><code>id juan</code> · <code>groups juan</code></td><td>Muestra UID, GID y grupos a los que pertenece.</td></tr>
+</tbody></table>
+
+<h2>Grupos: permisos para varios a la vez</h2>
+<p>Un usuario tiene un <strong>grupo principal</strong> y puede estar en varios <strong>grupos secundarios</strong>. Los grupos son la forma de dar permisos a un equipo sin repetir la configuración persona por persona.</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">grupos</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo groupadd desarrollo</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo usermod <span class="fl">-aG</span> desarrollo ana</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo usermod <span class="fl">-aG</span> desarrollo juan</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo chown :desarrollo /srv/proyecto</span>   <span class="cm"># la carpeta es del grupo</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo chmod 2775 /srv/proyecto</span>          <span class="cm"># SGID: todo lo nuevo hereda el grupo</span></div>
+</div></div>
+
+<h2>root y sudo</h2>
+<p><strong>root</strong> es el superusuario: puede todo, incluso destruir el sistema. La buena práctica es <em>no</em> usar root directamente, sino <strong>sudo</strong> para ejecutar comandos puntuales con privilegios.</p>
+<div class="diagram">
+<svg viewBox="0 0 600 130" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12.5">
+  <rect x="20" y="30" width="150" height="60" rx="8" fill="#1e2128" stroke="#8ec07c"/>
+  <text x="95" y="58" text-anchor="middle" fill="#8ec07c" font-weight="700">usuario ana</text>
+  <text x="95" y="76" text-anchor="middle" fill="#6b7280">permisos normales</text>
+  <text x="200" y="55" fill="#f2a541" font-weight="700">sudo</text>
+  <text x="200" y="72" fill="#6b7280" font-size="10">verifica contraseña</text>
+  <line x1="175" y1="60" x2="290" y2="60" stroke="#f2a541" stroke-dasharray="4"/>
+  <polygon points="290,60 282,55 282,65" fill="#f2a541"/>
+  <rect x="300" y="30" width="150" height="60" rx="8" fill="#2e1c18" stroke="#e07a5f"/>
+  <text x="375" y="58" text-anchor="middle" fill="#e07a5f" font-weight="700">acción como root</text>
+  <text x="375" y="76" text-anchor="middle" fill="#6b7280">solo ese comando</text>
+  <text x="480" y="55" fill="#6b7280" font-size="11">queda</text>
+  <text x="480" y="70" fill="#6b7280" font-size="11">registrado</text>
+</svg>
+<div class="cap">sudo eleva privilegios por comando y deja rastro en los logs</div>
+</div>
+<div class="note warn"><span class="tag">Buenas prácticas</span>
+Dale <code>sudo</code> solo a quien lo necesite. Cada uso queda registrado en <code>/var/log/auth.log</code>. Evitá habilitar el login directo de root, sobre todo por SSH (lo vemos en el módulo de seguridad).</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Creá un usuario llamado <code>practicante</code> con su carpeta home y shell bash.</li>
+<li>Asignale una contraseña.</li>
+<li>Creá un grupo <code>soporte</code> y agregá a <code>practicante</code> como miembro secundario sin quitarle su grupo principal.</li>
+<li>Verificá con un solo comando todos los grupos de <code>practicante</code>.</li>
+<li>Mirá la línea de <code>practicante</code> en <code>/etc/passwd</code> e identificá su UID.</li>
+<li>Eliminá al usuario junto con su carpeta home.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo useradd <span class="fl">-m -s</span> /bin/bash practicante</span>  <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo passwd practicante</span>                     <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo groupadd soporte</span>                       <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo usermod <span class="fl">-aG</span> soporte practicante</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">groups practicante</span>                          <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep practicante /etc/passwd</span>                <span class="cm"># 5</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo deluser <span class="fl">--remove-home</span> practicante</span>    <span class="cm"># 6</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 5: TEXTO ============ */
+reg({idx:'05',group:'Gestión del sistema',navTitle:'Búsqueda y texto',html:`
+<div class="topbar"><span class="path">tty0 / gestión / <b>búsqueda y texto</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">05.</span> Buscar y procesar texto</h1>
+  <p class="lead">Encontrar archivos, filtrar logs y combinar comandos con pipes. Acá la consola empieza a volverse superpoderosa.</p>
+</div>
+
+<h2>Encontrar archivos</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>find /var -name "*.log"</code></td><td>Busca por nombre a partir de una ruta. La herramienta más potente y flexible.</td></tr>
+<tr><td><code>find . -type f -mtime -1</code></td><td>Archivos modificados en el último día.</td></tr>
+<tr><td><code>find / -size +100M</code></td><td>Archivos de más de 100 MB (útil para liberar disco).</td></tr>
+<tr><td><code>locate archivo</code></td><td>Búsqueda instantánea por base de datos (ejecutá <code>sudo updatedb</code> antes).</td></tr>
+<tr><td><code>which python3</code></td><td>Ruta del ejecutable de un comando disponible en tu PATH.</td></tr>
+</tbody></table>
+<div class="note tip"><span class="tag">find puede actuar, no solo listar</span>
+Con <code>-exec</code> ejecutás un comando sobre cada resultado. Ej: borrar logs viejos → <code>find /var/log -name "*.gz" -mtime +30 -exec rm {} \\;</code> (el <code>{}</code> es cada archivo encontrado).</div>
+
+<h2>grep: el buscador de texto</h2>
+<p><code>grep</code> filtra líneas que coinciden con un patrón. Es probablemente el comando que más vas a usar como administrador.</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">grep</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="hl">"error"</span> /var/log/syslog</span>          <span class="cm"># líneas con "error"</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-i</span> <span class="hl">"error"</span> app.log</span>              <span class="cm"># sin distinguir mayúsculas</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-r</span> <span class="hl">"TODO"</span> ./proyecto</span>            <span class="cm"># recursivo en toda la carpeta</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-c</span> <span class="hl">"404"</span> access.log</span>             <span class="cm"># contar coincidencias</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-v</span> <span class="hl">"debug"</span> app.log</span>             <span class="cm"># invertir: líneas que NO coinciden</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-n</span> <span class="hl">"fallo"</span> app.log</span>              <span class="cm"># mostrar número de línea</span></div>
+</div></div>
+
+<h2>Pipes y redirecciones: conectar comandos</h2>
+<p>La filosofía de Unix: programas pequeños que hacen una cosa bien, encadenados. El <strong>pipe</strong> (<code>|</code>) toma la salida de un comando y la entrega como entrada al siguiente.</p>
+<div class="diagram">
+<svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="13">
+  <rect x="15" y="35" width="120" height="46" rx="7" fill="#1e2128" stroke="#8ec07c"/>
+  <text x="75" y="63" text-anchor="middle" fill="#8ec07c">cat log</text>
+  <text x="153" y="63" fill="#f2a541" font-size="22">|</text>
+  <rect x="175" y="35" width="130" height="46" rx="7" fill="#1e2128" stroke="#7cc5c9"/>
+  <text x="240" y="63" text-anchor="middle" fill="#7cc5c9">grep error</text>
+  <text x="323" y="63" fill="#f2a541" font-size="22">|</text>
+  <rect x="345" y="35" width="110" height="46" rx="7" fill="#1e2128" stroke="#b48ead"/>
+  <text x="400" y="63" text-anchor="middle" fill="#b48ead">sort</text>
+  <text x="473" y="63" fill="#f2a541" font-size="22">|</text>
+  <rect x="495" y="35" width="110" height="46" rx="7" fill="#1e2128" stroke="#f2a541"/>
+  <text x="550" y="63" text-anchor="middle" fill="#f2a541">uniq -c</text>
+  <text x="310" y="105" text-anchor="middle" fill="#6b7280" font-size="11">cada bloque recibe lo que produjo el anterior →</text>
+</svg>
+<div class="cap">Un pipeline: leer → filtrar → ordenar → contar únicos</div>
+</div>
+<table class="cmdtable">
+<thead><tr><th>Símbolo</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>cmd &gt; archivo</code></td><td>Redirige la salida a un archivo (lo <strong>sobrescribe</strong>).</td></tr>
+<tr><td><code>cmd &gt;&gt; archivo</code></td><td>Redirige <strong>agregando</strong> al final del archivo.</td></tr>
+<tr><td><code>cmd 2&gt; errores.txt</code></td><td>Redirige solo los errores (stderr).</td></tr>
+<tr><td><code>cmd &lt; archivo</code></td><td>Usa un archivo como entrada.</td></tr>
+<tr><td><code>cmd1 | cmd2</code></td><td>Conecta la salida de cmd1 con la entrada de cmd2.</td></tr>
+</tbody></table>
+
+<h2>Las herramientas de filtrado</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>wc -l</code></td><td>Cuenta líneas (palabras con <code>-w</code>, bytes con <code>-c</code>).</td></tr>
+<tr><td><code>sort</code></td><td>Ordena líneas. <code>-n</code> numérico, <code>-r</code> inverso, <code>-u</code> únicos.</td></tr>
+<tr><td><code>uniq -c</code></td><td>Colapsa líneas repetidas y las cuenta (requiere estar ordenado antes).</td></tr>
+<tr><td><code>cut -d: -f1</code></td><td>Corta columnas: <code>-d</code> es el separador, <code>-f</code> el campo.</td></tr>
+<tr><td><code>tr 'a-z' 'A-Z'</code></td><td>Traduce/reemplaza caracteres.</td></tr>
+<tr><td><code>head</code> / <code>tail</code></td><td>Primeras / últimas líneas del flujo.</td></tr>
+</tbody></table>
+
+<h3>Un ejemplo real: las 5 IPs que más golpean tu servidor web</h3>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">pipeline de análisis de logs</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">cat access.log | cut <span class="fl">-d' ' -f1</span> | sort | uniq <span class="fl">-c</span> | sort <span class="fl">-rn</span> | head <span class="fl">-5</span></span></div>
+<div class="l"><span class="out">   1423 203.0.113.45</span></div>
+<div class="l"><span class="out">    891 198.51.100.7</span></div>
+<div class="l"><span class="out">    340 192.0.2.19</span></div>
+<div class="l"><span class="cm"># extrae la IP (campo 1) · ordena · cuenta repetidas · ordena por cantidad · top 5</span></div>
+</div></div>
+
+<h2>sed y awk (un vistazo)</h2>
+<p>Dos herramientas avanzadas que verás por todos lados:</p>
+<ul>
+<li><code>sed</code> — edita flujos de texto. Reemplazo típico: <code>sed 's/viejo/nuevo/g' archivo</code>.</li>
+<li><code>awk</code> — procesa texto por columnas y campos. Ej: imprimir la 3ª columna → <code>awk '{print $3}'</code>.</li>
+</ul>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Contá cuántas líneas tiene <code>/etc/passwd</code> (equivale a la cantidad de cuentas del sistema).</li>
+<li>Extraé solo los nombres de usuario de <code>/etc/passwd</code> (primer campo, separador <code>:</code>) y ordenalos alfabéticamente.</li>
+<li>Buscá todas las líneas con "fail" o "error" (sin importar mayúsculas) en <code>/var/log/syslog</code> y guardá el resultado en <code>~/incidencias.txt</code>.</li>
+<li>Encontrá todos los archivos <code>.conf</code> dentro de <code>/etc</code>.</li>
+<li>Contá cuántos usuarios usan <code>/bin/bash</code> como shell.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">wc <span class="fl">-l</span> /etc/passwd</span>                                   <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cut <span class="fl">-d:</span> <span class="fl">-f1</span> /etc/passwd | sort</span>                   <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-iE</span> <span class="hl">"fail|error"</span> /var/log/syslog &gt; ~/incidencias.txt</span>  <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">find /etc <span class="fl">-name</span> <span class="hl">"*.conf"</span></span>                        <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">grep <span class="fl">-c</span> <span class="hl">"/bin/bash"</span> /etc/passwd</span>                   <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 6: PAQUETES ============ */
+reg({idx:'06',group:'Gestión del sistema',navTitle:'Paquetes',html:`
+<div class="topbar"><span class="path">tty0 / gestión / <b>paquetes</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">06.</span> Instalar y actualizar software</h1>
+  <p class="lead">Los gestores de paquetes: cómo instalar programas, mantener el sistema al día y no romper dependencias.</p>
+</div>
+
+<h2>¿Qué es un gestor de paquetes?</h2>
+<p>En vez de descargar instaladores sueltos de internet, en Linux pedís software a <strong>repositorios</strong>: catálogos oficiales, firmados y con seguimiento de dependencias. El gestor se ocupa de bajar, instalar, actualizar y quitar todo de forma coherente. Cada familia de distribuciones usa el suyo:</p>
+<table class="cmdtable">
+<thead><tr><th>Familia</th><th>Gestor</th><th>Distribuciones</th></tr></thead>
+<tbody>
+<tr><td>Debian</td><td><code>apt</code></td><td>Debian, Ubuntu, Mint</td></tr>
+<tr><td>Red Hat</td><td><code>dnf</code> / <code>yum</code></td><td>Fedora, RHEL, Rocky, AlmaLinux</td></tr>
+<tr><td>Arch</td><td><code>pacman</code></td><td>Arch, Manjaro</td></tr>
+<tr><td>SUSE</td><td><code>zypper</code></td><td>openSUSE</td></tr>
+</tbody></table>
+
+<h2>apt (Debian / Ubuntu)</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>sudo apt update</code></td><td>Actualiza la lista de paquetes disponibles. <strong>Siempre primero.</strong></td></tr>
+<tr><td><code>sudo apt upgrade</code></td><td>Instala las nuevas versiones de lo que ya tenés.</td></tr>
+<tr><td><code>sudo apt install nginx</code></td><td>Instala un paquete y sus dependencias.</td></tr>
+<tr><td><code>sudo apt remove nginx</code></td><td>Desinstala (conserva configuración). <code>purge</code> borra también la config.</td></tr>
+<tr><td><code>apt search palabra</code></td><td>Busca paquetes en los repositorios.</td></tr>
+<tr><td><code>apt show nginx</code></td><td>Muestra descripción, versión y dependencias.</td></tr>
+<tr><td><code>sudo apt autoremove</code></td><td>Limpia dependencias huérfanas que ya nadie usa.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">flujo típico de mantenimiento</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt update <span class="fl">&&</span> sudo apt upgrade <span class="fl">-y</span></span>   <span class="cm"># actualizar todo</span></div>
+<div class="l"><span class="out">Reading package lists... Done</span></div>
+<div class="l"><span class="out">42 packages can be upgraded.</span></div>
+<div class="l"><span class="out">...</span></div>
+<div class="l"><span class="ok">✓</span> <span class="out">Los paquetes se actualizaron correctamente.</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> htop curl git</span>       <span class="cm"># varios de una</span></div>
+</div></div>
+<div class="note info"><span class="tag">El operador &&</span>
+<code>&&</code> encadena comandos y ejecuta el segundo <em>solo si el primero tuvo éxito</em>. Por eso <code>apt update && apt upgrade</code> es el patrón correcto: no actualiza con una lista desfasada.</div>
+
+<h2>dnf (Fedora / RHEL)</h2>
+<p>Los conceptos son idénticos, cambia el nombre:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">dnf</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo dnf check-update</span>        <span class="cm"># ~ apt update</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo dnf upgrade</span>             <span class="cm"># actualizar todo</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo dnf install nginx</span>       <span class="cm"># instalar</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo dnf remove nginx</span>        <span class="cm"># desinstalar</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">dnf search palabra</span>           <span class="cm"># buscar</span></div>
+</div></div>
+
+<h2>Paquetes universales</h2>
+<p>Además de los repos de tu distro, existen formatos que funcionan en cualquier Linux: <strong>Snap</strong> (<code>snap install</code>), <strong>Flatpak</strong> (<code>flatpak install</code>) y <strong>AppImage</strong> (un archivo ejecutable único). Traen la app con todas sus dependencias empaquetadas; muy cómodos en escritorio, menos comunes en servidores.</p>
+
+<div class="note warn"><span class="tag">Cuidado con instalar a ciegas</span>
+No copies y pegues comandos <code>curl ... | sudo bash</code> de sitios que no confiás: le estás dando control total del sistema a un script remoto. Preferí siempre los repositorios oficiales y, si agregás uno externo, verificá su firma GPG.</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Actualizá la lista de paquetes de tu sistema y mostrá cuántos pueden actualizarse.</li>
+<li>Instalá <code>htop</code>, <code>tree</code> y <code>ncdu</code> en un solo comando.</li>
+<li>Buscá información detallada del paquete <code>curl</code> (versión y descripción).</li>
+<li>Instalá <code>cowsay</code> y hacé que una vaca ASCII diga "hola servidor". Después desinstalalo por completo (incluyendo configuración).</li>
+<li>Ejecutá una limpieza de dependencias huérfanas.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones (Debian/Ubuntu)</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt update</span>                          <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> htop tree ncdu</span>       <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">apt show curl</span>                            <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> cowsay</span>              <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cowsay <span class="hl">"hola servidor"</span></span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt purge <span class="fl">-y</span> cowsay</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt autoremove <span class="fl">-y</span></span>                  <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 7: PROCESOS ============ */
+reg({idx:'07',group:'Gestión del sistema',navTitle:'Procesos',html:`
+<div class="topbar"><span class="path">tty0 / gestión / <b>procesos</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">07.</span> Procesos: ver, controlar, matar</h1>
+  <p class="lead">Todo lo que corre en tu servidor es un proceso. Saber verlos y controlarlos es clave para diagnosticar problemas de rendimiento.</p>
+</div>
+
+<h2>Qué es un proceso</h2>
+<p>Un <strong>proceso</strong> es un programa en ejecución. Cada uno tiene un <strong>PID</strong> (identificador único), un dueño, un estado y consume CPU y memoria. Los procesos nacen de otros (su <strong>padre</strong>), formando un árbol cuya raíz es <code>systemd</code> (PID 1).</p>
+<div class="diagram">
+<svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12.5">
+  <g>
+    <rect x="35" y="20" width="90" height="34" rx="6" fill="#1e2128" stroke="#f2a541"/><text x="80" y="42" text-anchor="middle" fill="#f2a541">R · corriendo</text>
+    <rect x="35" y="62" width="90" height="34" rx="6" fill="#1e2128" stroke="#7cc5c9"/><text x="80" y="84" text-anchor="middle" fill="#7cc5c9">S · durmiendo</text>
+    <rect x="35" y="104" width="90" height="34" rx="6" fill="#1e2128" stroke="#e07a5f"/><text x="80" y="126" text-anchor="middle" fill="#e07a5f">Z · zombie</text>
+  </g>
+  <g font-size="12" fill="#d8d4cb">
+    <text x="145" y="42">usando la CPU activamente</text>
+    <text x="145" y="84">esperando algo (lo más común)</text>
+    <text x="145" y="126">terminó pero el padre no lo "recogió"</text>
+  </g>
+  <text x="35" y="150" fill="#6b7280" font-size="11">Estados que verás en top / ps</text>
+</svg>
+<div class="cap">Estados de un proceso</div>
+</div>
+
+<h2>Ver procesos</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué muestra</th></tr></thead>
+<tbody>
+<tr><td><code>ps aux</code></td><td>Foto instantánea de <em>todos</em> los procesos con dueño, CPU, memoria y comando.</td></tr>
+<tr><td><code>ps aux | grep nginx</code></td><td>Filtrar por un proceso concreto.</td></tr>
+<tr><td><code>top</code></td><td>Monitor en vivo, se actualiza solo. Ordená por CPU (<kbd>P</kbd>) o memoria (<kbd>M</kbd>), salí con <kbd>q</kbd>.</td></tr>
+<tr><td><code>htop</code></td><td>Versión mejorada y colorida de top (se instala aparte). Muy recomendable.</td></tr>
+<tr><td><code>pstree</code></td><td>Muestra los procesos como árbol jerárquico.</td></tr>
+<tr><td><code>pgrep nginx</code></td><td>Devuelve directamente los PID que coinciden con un nombre.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ps aux (recortado)</span></div>
+<div class="term-body">
+<div class="l"><span class="out">USER   PID  %CPU %MEM    VSZ   RSS STAT  COMMAND</span></div>
+<div class="l"><span class="out">root     1   0.0  0.1 168000 11800 Ss    /sbin/init</span></div>
+<div class="l"><span class="out">www-data 812 2.3  4.1 512000 84000 S     nginx: worker</span></div>
+<div class="l"><span class="out">postgres 940 1.1  8.0 998000 160000 S    postgres: main</span></div>
+<div class="l"><span class="cm">#      └PID  └%CPU └%MEM              └estado └comando</span></div>
+</div></div>
+
+<h2>Controlar procesos: señales</h2>
+<p>A un proceso se le manda una <strong>señal</strong> con <code>kill</code>. La más famosa es la de terminación:</p>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Efecto</th></tr></thead>
+<tbody>
+<tr><td><code>kill 812</code></td><td>Envía SIGTERM: pide al proceso 812 que cierre <em>ordenadamente</em>. Probá esto primero.</td></tr>
+<tr><td><code>kill -9 812</code></td><td>SIGKILL: lo mata de inmediato, sin darle chance a limpiar. Último recurso.</td></tr>
+<tr><td><code>kill -HUP 812</code></td><td>Muchos servicios recargan su configuración al recibir esta señal.</td></tr>
+<tr><td><code>killall nginx</code></td><td>Mata todos los procesos con ese nombre.</td></tr>
+<tr><td><code>pkill -f "python app.py"</code></td><td>Mata por coincidencia de línea de comando completa.</td></tr>
+</tbody></table>
+<div class="note warn"><span class="tag">SIGKILL no es la primera opción</span>
+<code>kill -9</code> puede dejar datos corruptos o archivos bloqueados porque el proceso no alcanza a cerrar bien. Usá <code>kill</code> (SIGTERM) y esperá unos segundos; recurrí a <code>-9</code> solo si el proceso está realmente colgado.</div>
+
+<h2>Prioridad y procesos en segundo plano</h2>
+<p>La <strong>prioridad</strong> (niceness) va de -20 (más prioritario) a 19 (menos). Los usuarios normales solo pueden bajar prioridad:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">prioridad y background</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">nice <span class="fl">-n 10</span> ./tarea_pesada.sh</span>   <span class="cm"># arrancar con baja prioridad</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">renice <span class="fl">-n 5 -p</span> 940</span>            <span class="cm"># cambiar prioridad de un PID vivo</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">./backup.sh <span class="fl">&</span></span>                   <span class="cm"># correr en segundo plano</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">jobs</span>                          <span class="cm"># ver tareas en background</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">fg <span class="fl">%1</span></span>                        <span class="cm"># traer la tarea 1 al frente</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">nohup ./servidor.sh <span class="fl">&</span></span>          <span class="cm"># sigue vivo aunque cierres la sesión</span></div>
+</div></div>
+<p>Atajos en vivo: <kbd>Ctrl</kbd>+<kbd>Z</kbd> pausa el proceso actual y lo manda a background; <code>bg</code> lo reanuda ahí.</p>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Mostrá todos los procesos y filtrá los que pertenezcan a tu usuario.</li>
+<li>Abrí <code>top</code>, ordená por consumo de memoria y anotá cuál es el proceso más pesado. Salí.</li>
+<li>Lanzá <code>sleep 500 &</code> en segundo plano y encontrá su PID con <code>pgrep</code>.</li>
+<li>Terminá ese proceso <code>sleep</code> de forma ordenada.</li>
+<li>Lanzá otro <code>sleep 500</code>, pausalo con <kbd>Ctrl</kbd>+<kbd>Z</kbd>, mandalo a background con <code>bg</code> y verificá con <code>jobs</code>.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">ps <span class="fl">-u</span> $(whoami)</span>          <span class="cm"># 1 (o: ps aux | grep ^$USER)</span></div>
+<div class="l"><span class="cm"># 2) en top: apretá M para ordenar por memoria, q para salir</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sleep 500 <span class="fl">&</span></span>              <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">pgrep sleep</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">kill $(pgrep sleep)</span>        <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sleep 500</span>                 <span class="cm"># 5: luego Ctrl+Z</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">bg; jobs</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 8: SERVICIOS ============ */
+reg({idx:'08',group:'Redes y servicios',navTitle:'Servicios (systemd)',html:`
+<div class="topbar"><span class="path">tty0 / servicios / <b>systemd</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">08.</span> Servicios con systemd</h1>
+  <p class="lead">Los servicios son los programas que corren de fondo: el servidor web, la base de datos, SSH. systemd es quien los arranca, detiene y vigila.</p>
+</div>
+
+<h2>systemd y systemctl</h2>
+<p><strong>systemd</strong> es el sistema de init: el primer proceso (PID 1) y el que gestiona todos los servicios (llamados <strong>units</strong>). Lo controlás con <code>systemctl</code>. El ciclo de vida de un servicio es simple:</p>
+<div class="diagram">
+<svg viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12">
+  <rect x="30" y="55" width="110" height="42" rx="7" fill="#1e2128" stroke="#6b7280"/><text x="85" y="81" text-anchor="middle" fill="#9aa0ac">detenido</text>
+  <rect x="245" y="55" width="110" height="42" rx="7" fill="#1e2a1c" stroke="#8ec07c"/><text x="300" y="81" text-anchor="middle" fill="#8ec07c">activo (running)</text>
+  <rect x="460" y="55" width="110" height="42" rx="7" fill="#1e2128" stroke="#6b7280"/><text x="515" y="81" text-anchor="middle" fill="#9aa0ac">detenido</text>
+  <line x1="140" y1="70" x2="243" y2="70" stroke="#8ec07c"/><polygon points="243,70 235,66 235,74" fill="#8ec07c"/>
+  <text x="192" y="60" text-anchor="middle" fill="#8ec07c" font-size="11">start</text>
+  <line x1="355" y1="85" x2="458" y2="85" stroke="#e07a5f"/><polygon points="458,85 450,81 450,89" fill="#e07a5f"/>
+  <text x="406" y="105" text-anchor="middle" fill="#e07a5f" font-size="11">stop</text>
+  <path d="M300 55 q0 -35 -60 -35 q-60 0 -60 35" fill="none" stroke="#f2a541"/><polygon points="180,55 176,47 184,47" fill="#f2a541"/>
+  <text x="240" y="15" text-anchor="middle" fill="#f2a541" font-size="11">restart / reload</text>
+</svg>
+<div class="cap">start · stop · restart · reload</div>
+</div>
+
+<h2>Los comandos que usarás a diario</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>systemctl status nginx</code></td><td>Estado del servicio: activo o no, PID, últimas líneas de log. Tu primer diagnóstico.</td></tr>
+<tr><td><code>sudo systemctl start nginx</code></td><td>Arranca el servicio ahora.</td></tr>
+<tr><td><code>sudo systemctl stop nginx</code></td><td>Lo detiene.</td></tr>
+<tr><td><code>sudo systemctl restart nginx</code></td><td>Lo reinicia (stop + start).</td></tr>
+<tr><td><code>sudo systemctl reload nginx</code></td><td>Recarga la config sin cortar el servicio (si el programa lo soporta).</td></tr>
+<tr><td><code>sudo systemctl enable nginx</code></td><td>Lo marca para que <strong>arranque solo al bootear</strong>.</td></tr>
+<tr><td><code>sudo systemctl disable nginx</code></td><td>Deja de arrancar al inicio.</td></tr>
+<tr><td><code>systemctl list-units --type=service</code></td><td>Lista todos los servicios cargados.</td></tr>
+</tbody></table>
+<div class="note tip"><span class="tag">enable ≠ start</span>
+Son cosas distintas: <code>start</code> lo arranca <em>ahora</em>; <code>enable</code> hace que arranque <em>en cada reinicio</em>. Para un servicio de producción casi siempre querés ambos: <code>sudo systemctl enable --now nginx</code> hace las dos a la vez.</div>
+
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">systemctl status</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">systemctl status ssh</span></div>
+<div class="l"><span class="ok">● ssh.service</span> <span class="out">- OpenBSD Secure Shell server</span></div>
+<div class="l"><span class="out">   Loaded: loaded (/lib/systemd/system/ssh.service; </span><span class="ok">enabled</span><span class="out">)</span></div>
+<div class="l"><span class="out">   Active: </span><span class="ok">active (running)</span><span class="out"> since Tue 2026-07-21 09:02; 1h ago</span></div>
+<div class="l"><span class="out">     Main PID: 743 (sshd)</span></div>
+<div class="l"><span class="out">     ...logs recientes del servicio...</span></div>
+</div></div>
+
+<h2>Leer los logs con journalctl</h2>
+<p>systemd centraliza los logs. <code>journalctl</code> es tu ventana a ellos:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">journalctl</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-u</span> nginx</span>            <span class="cm"># logs solo de nginx</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-u</span> nginx <span class="fl">-f</span></span>         <span class="cm"># seguir en vivo (como tail -f)</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-u</span> nginx <span class="fl">--since</span> <span class="hl">"1 hour ago"</span></span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-p</span> err <span class="fl">-b</span></span>          <span class="cm"># solo errores del arranque actual</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">--disk-usage</span></span>          <span class="cm"># cuánto ocupan los logs</span></div>
+</div></div>
+
+<h2>Crear tu propio servicio</h2>
+<p>Podés convertir cualquier script en un servicio gestionado. Se define en un archivo <code>.service</code> dentro de <code>/etc/systemd/system/</code>:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">/etc/systemd/system/miapp.service</span></div>
+<div class="term-body">
+<div class="l"><span class="hl">[Unit]</span></div>
+<div class="l"><span class="cmd">Description=Mi aplicación web</span></div>
+<div class="l"><span class="cmd">After=network.target</span></div>
+<div class="l"></div>
+<div class="l"><span class="hl">[Service]</span></div>
+<div class="l"><span class="cmd">ExecStart=/usr/bin/python3 /opt/miapp/app.py</span></div>
+<div class="l"><span class="cmd">Restart=on-failure</span>   <span class="cm"># se reinicia solo si falla</span></div>
+<div class="l"><span class="cmd">User=www-data</span></div>
+<div class="l"></div>
+<div class="l"><span class="hl">[Install]</span></div>
+<div class="l"><span class="cmd">WantedBy=multi-user.target</span></div>
+</div></div>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">activarlo</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl daemon-reload</span>       <span class="cm"># releer archivos de unit</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl enable <span class="fl">--now</span> miapp</span>  <span class="cm"># activar y arrancar</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">systemctl status miapp</span></div>
+</div></div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Consultá el estado del servicio <code>ssh</code> (o <code>sshd</code>). ¿Está activo? ¿Está habilitado en el arranque?</li>
+<li>Instalá <code>nginx</code>, arrancalo y verificá que responde entrando a <code>http://localhost</code> con <code>curl</code>.</li>
+<li>Hacé que <code>nginx</code> arranque automáticamente en cada reinicio.</li>
+<li>Mostrá los últimos logs de <code>nginx</code> generados en la última hora.</li>
+<li>Detené <code>nginx</code> y confirmá con <code>status</code> que quedó inactivo.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">systemctl status ssh</span>                       <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> nginx</span>                 <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl start nginx</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">curl <span class="fl">-I</span> http://localhost</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl enable nginx</span>                 <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-u</span> nginx <span class="fl">--since</span> <span class="hl">"1 hour ago"</span></span>   <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl stop nginx; systemctl status nginx</span>  <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 9: REDES ============ */
+reg({idx:'09',group:'Redes y servicios',navTitle:'Redes',html:`
+<div class="topbar"><span class="path">tty0 / redes / <b>diagnóstico y conexión</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">09.</span> Redes: conectar y diagnosticar</h1>
+  <p class="lead">Ver tu configuración de red, comprobar conectividad, transferir archivos y conectarte a servidores remotos con SSH.</p>
+</div>
+
+<h2>Ver la configuración de red</h2>
+<p>El comando moderno es <code>ip</code> (reemplazó al viejo <code>ifconfig</code>):</p>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué muestra</th></tr></thead>
+<tbody>
+<tr><td><code>ip addr</code> (o <code>ip a</code>)</td><td>Tus interfaces de red y sus direcciones IP.</td></tr>
+<tr><td><code>ip route</code></td><td>La tabla de rutas: por dónde sale el tráfico (tu gateway).</td></tr>
+<tr><td><code>ip link</code></td><td>Estado físico de las interfaces (up/down).</td></tr>
+<tr><td><code>hostname -I</code></td><td>Atajo para ver rápido tus IPs.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ip addr</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">ip addr</span></div>
+<div class="l"><span class="out">2: eth0: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500</span></div>
+<div class="l"><span class="out">    inet </span><span class="hl">192.168.1.50</span><span class="out">/24 brd 192.168.1.255 scope global eth0</span></div>
+<div class="l"><span class="cm">#        └ tu IP        └ máscara (/24 = 255.255.255.0)</span></div>
+</div></div>
+
+<h2>Comprobar conectividad</h2>
+<div class="diagram">
+<svg viewBox="0 0 600 130" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12">
+  <rect x="20" y="45" width="90" height="44" rx="7" fill="#1e2128" stroke="#8ec07c"/><text x="65" y="72" text-anchor="middle" fill="#8ec07c">tu servidor</text>
+  <rect x="250" y="45" width="90" height="44" rx="7" fill="#1e2128" stroke="#f2a541"/><text x="295" y="72" text-anchor="middle" fill="#f2a541">DNS</text>
+  <rect x="480" y="45" width="100" height="44" rx="7" fill="#1e2128" stroke="#7cc5c9"/><text x="530" y="72" text-anchor="middle" fill="#7cc5c9">sitio destino</text>
+  <line x1="110" y1="67" x2="248" y2="67" stroke="#6b7280"/><polygon points="248,67 240,63 240,71" fill="#6b7280"/>
+  <text x="179" y="40" text-anchor="middle" fill="#9aa0ac" font-size="11">dig / nslookup</text>
+  <text x="179" y="105" text-anchor="middle" fill="#6b7280" font-size="10">¿nombre → IP?</text>
+  <line x1="340" y1="67" x2="478" y2="67" stroke="#6b7280"/><polygon points="478,67 470,63 470,71" fill="#6b7280"/>
+  <text x="409" y="40" text-anchor="middle" fill="#9aa0ac" font-size="11">ping / traceroute</text>
+  <text x="409" y="105" text-anchor="middle" fill="#6b7280" font-size="10">¿llega el paquete?</text>
+</svg>
+<div class="cap">Diagnóstico por capas: primero resolvés el nombre, después probás la conexión</div>
+</div>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>ping google.com</code></td><td>¿Hay conexión? Mide latencia. Cortá con <kbd>Ctrl</kbd>+<kbd>C</kbd>.</td></tr>
+<tr><td><code>traceroute google.com</code></td><td>Muestra el camino (saltos) que recorre el tráfico.</td></tr>
+<tr><td><code>dig google.com</code></td><td>Consulta DNS detallada: qué IP resuelve un dominio.</td></tr>
+<tr><td><code>nslookup google.com</code></td><td>Alternativa más simple para resolver nombres.</td></tr>
+<tr><td><code>ss -tuln</code></td><td>Puertos que tu servidor está escuchando (reemplaza a <code>netstat</code>).</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ss -tuln — ¿qué está escuchando?</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">ss <span class="fl">-tuln</span></span></div>
+<div class="l"><span class="out">Netid  State   Local Address:Port</span></div>
+<div class="l"><span class="out">tcp    LISTEN  0.0.0.0:</span><span class="hl">22</span><span class="out">          </span><span class="cm"># SSH</span></div>
+<div class="l"><span class="out">tcp    LISTEN  0.0.0.0:</span><span class="hl">80</span><span class="out">          </span><span class="cm"># web (HTTP)</span></div>
+<div class="l"><span class="out">tcp    LISTEN  127.0.0.1:</span><span class="hl">5432</span><span class="out">       </span><span class="cm"># PostgreSQL (solo local)</span></div>
+</div></div>
+
+<h2>Descargar y transferir</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>curl -O https://.../archivo.zip</code></td><td>Descarga un archivo. Sin <code>-O</code>, imprime la respuesta (ideal para APIs).</td></tr>
+<tr><td><code>wget https://.../archivo.zip</code></td><td>Descargador clásico, bueno para archivos grandes y reintentos.</td></tr>
+<tr><td><code>scp archivo user@host:/ruta</code></td><td>Copia un archivo a otro servidor de forma segura (sobre SSH).</td></tr>
+<tr><td><code>rsync -avz origen/ user@host:/dest/</code></td><td>Sincroniza carpetas transfiriendo solo lo que cambió. El rey de los backups.</td></tr>
+</tbody></table>
+
+<h2>SSH: la puerta a tus servidores</h2>
+<p><strong>SSH</strong> te da una shell en un servidor remoto de forma cifrada. Es la herramienta con la que administrarás servidores reales.</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ssh</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh ana@203.0.113.10</span>              <span class="cm"># conectar por contraseña</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh <span class="fl">-p</span> 2222 ana@servidor.com</span>       <span class="cm"># puerto no estándar</span></div>
+<div class="l"><span class="cm"># --- mejor: autenticación por clave (sin contraseña) ---</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh-keygen <span class="fl">-t</span> ed25519</span>             <span class="cm"># generar par de claves</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh-copy-id ana@203.0.113.10</span>       <span class="cm"># instalar tu clave pública allá</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh ana@203.0.113.10</span>              <span class="cm"># ahora entra sin pedir contraseña</span></div>
+</div></div>
+<div class="note tip"><span class="tag">Claves &gt; contraseñas</span>
+La autenticación por clave SSH es más segura y más cómoda que la contraseña. La clave <em>privada</em> nunca sale de tu máquina; la <em>pública</em> se copia al servidor. En el módulo de seguridad vas a desactivar el login por contraseña por completo.</div>
+
+<h2>Firewall</h2>
+<p>El firewall controla qué puertos aceptan conexiones. En Ubuntu, <code>ufw</code> es el más simple:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ufw</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw allow 22/tcp</span>       <span class="cm"># permitir SSH — ¡hacelo ANTES de activar!</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw allow 80,443/tcp</span>   <span class="cm"># web HTTP y HTTPS</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw enable</span>            <span class="cm"># activar el firewall</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw status numbered</span>    <span class="cm"># ver reglas</span></div>
+</div></div>
+<div class="note warn"><span class="tag">No te dejes afuera</span>
+Si activás el firewall sin permitir el puerto 22 primero, perdés el acceso SSH al servidor remoto y quedás bloqueado. Permitir SSH siempre va <em>antes</em> de <code>ufw enable</code>.</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Averiguá la dirección IP de tu máquina y cuál es tu gateway (puerta de enlace).</li>
+<li>Comprobá que tenés salida a internet haciendo ping a <code>1.1.1.1</code> (4 paquetes y frená).</li>
+<li>Averiguá a qué IP resuelve el dominio <code>github.com</code>.</li>
+<li>Listá todos los puertos que tu sistema está escuchando actualmente.</li>
+<li>Descargá la portada de <code>example.com</code> a un archivo <code>index.html</code>.</li>
+<li>Generá un par de claves SSH ed25519 (sin contraseña para la práctica).</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">ip addr; ip route | grep default</span>       <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ping <span class="fl">-c 4</span> 1.1.1.1</span>                   <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">dig <span class="fl">+short</span> github.com</span>              <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ss <span class="fl">-tuln</span></span>                          <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">curl <span class="fl">-o</span> index.html https://example.com</span>  <span class="cm"># 5</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ssh-keygen <span class="fl">-t</span> ed25519 <span class="fl">-N</span> <span class="hl">""</span></span>          <span class="cm"># 6</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 10: MONITOREO ============ */
+reg({idx:'10',group:'Redes y servicios',navTitle:'Monitoreo',html:`
+<div class="topbar"><span class="path">tty0 / servicios / <b>monitoreo</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">10.</span> Monitorear el sistema</h1>
+  <p class="lead">CPU, memoria, disco y logs. Cuando algo va lento o se cae, estos comandos te dicen dónde mirar.</p>
+</div>
+
+<h2>El chequeo rápido de salud</h2>
+<p>Cuando entrás a un servidor con problemas, esta es la ronda de diagnóstico inicial:</p>
+<div class="diagram">
+<svg viewBox="0 0 600 160" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="12">
+  <g>
+    <rect x="20" y="20" width="130" height="50" rx="8" fill="#1e2128" stroke="#f2a541"/><text x="85" y="42" text-anchor="middle" fill="#f2a541" font-weight="700">CPU</text><text x="85" y="60" text-anchor="middle" fill="#9aa0ac">uptime · top</text>
+    <rect x="165" y="20" width="130" height="50" rx="8" fill="#1e2128" stroke="#8ec07c"/><text x="230" y="42" text-anchor="middle" fill="#8ec07c" font-weight="700">Memoria</text><text x="230" y="60" text-anchor="middle" fill="#9aa0ac">free -h</text>
+    <rect x="310" y="20" width="130" height="50" rx="8" fill="#1e2128" stroke="#7cc5c9"/><text x="375" y="42" text-anchor="middle" fill="#7cc5c9" font-weight="700">Disco</text><text x="375" y="60" text-anchor="middle" fill="#9aa0ac">df -h · du</text>
+    <rect x="455" y="20" width="130" height="50" rx="8" fill="#1e2128" stroke="#b48ead"/><text x="520" y="42" text-anchor="middle" fill="#b48ead" font-weight="700">Logs</text><text x="520" y="60" text-anchor="middle" fill="#9aa0ac">journalctl</text>
+  </g>
+  <text x="300" y="110" text-anchor="middle" fill="#6b7280" font-size="11">las cuatro preguntas: ¿se satura el CPU? ¿falta RAM? ¿se llenó el disco? ¿qué dicen los logs?</text>
+</svg>
+<div class="cap">La ronda de diagnóstico de todo administrador</div>
+</div>
+
+<h2>CPU y carga</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué muestra</th></tr></thead>
+<tbody>
+<tr><td><code>uptime</code></td><td>Tiempo encendido y <strong>load average</strong> (carga a 1, 5 y 15 min).</td></tr>
+<tr><td><code>top</code> / <code>htop</code></td><td>Uso de CPU en vivo por proceso.</td></tr>
+<tr><td><code>nproc</code></td><td>Número de núcleos (para interpretar el load average).</td></tr>
+<tr><td><code>vmstat 1</code></td><td>Estadísticas de CPU, memoria y E/S actualizadas cada segundo.</td></tr>
+</tbody></table>
+<div class="note info"><span class="tag">Leer el load average</span>
+Si <code>uptime</code> dice <code>load average: 2.0</code> y tenés 4 núcleos, el sistema está al 50% (2 de 4 ocupados en promedio). Un load igual al número de núcleos = saturación. Muy por encima = el servidor está sufriendo.</div>
+
+<h2>Memoria</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">free -h</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">free <span class="fl">-h</span></span></div>
+<div class="l"><span class="out">               total   usado   libre   compartido  buff/cache  disponible</span></div>
+<div class="l"><span class="out">Mem:           7.8Gi   2.1Gi   3.2Gi      120Mi      2.5Gi     </span><span class="hl">5.3Gi</span></div>
+<div class="l"><span class="out">Swap:          2.0Gi   0.0Gi   2.0Gi</span></div>
+<div class="l"><span class="cm"># mirá "disponible", no "libre": buff/cache se libera si hace falta</span></div>
+</div></div>
+
+<h2>Disco</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué muestra</th></tr></thead>
+<tbody>
+<tr><td><code>df -h</code></td><td>Espacio usado y libre por partición (legible). Empezá siempre por acá.</td></tr>
+<tr><td><code>du -sh /var/log</code></td><td>Cuánto pesa una carpeta concreta.</td></tr>
+<tr><td><code>du -h --max-depth=1 / | sort -rh</code></td><td>Qué carpetas del raíz ocupan más (para cazar al culpable).</td></tr>
+<tr><td><code>ncdu /</code></td><td>Explorador interactivo de uso de disco (se instala aparte). El favorito.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">df -h — el disco está por llenarse</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">df <span class="fl">-h</span></span></div>
+<div class="l"><span class="out">Filesystem      Size  Used Avail Use% Mounted on</span></div>
+<div class="l"><span class="out">/dev/sda1        40G   36G  2.0G  </span><span class="warn">95%</span><span class="out"> /</span>          <span class="cm"># ⚠ atención</span></div>
+<div class="l"><span class="out">/dev/sdb1       100G   12G   83G   </span><span class="ok">13%</span><span class="out"> /data</span></div>
+</div></div>
+<div class="note warn"><span class="tag">Disco lleno = servidor caído</span>
+Un disco al 100% rompe casi todo: servicios que no arrancan, bases que se corrompen, logs que no se escriben. Vigilá <code>/</code> y <code>/var</code>. Los sospechosos habituales de llenar disco: logs sin rotar, backups viejos y cachés.</div>
+
+<h2>Quién está conectado y qué pasó</h2>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué muestra</th></tr></thead>
+<tbody>
+<tr><td><code>w</code> / <code>who</code></td><td>Usuarios conectados ahora mismo.</td></tr>
+<tr><td><code>last</code></td><td>Historial de inicios de sesión.</td></tr>
+<tr><td><code>dmesg -T</code></td><td>Mensajes del kernel (útil ante fallos de hardware o discos).</td></tr>
+<tr><td><code>journalctl -p err -b</code></td><td>Todos los errores desde el último arranque.</td></tr>
+</tbody></table>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Averiguá hace cuánto está encendido tu sistema y cuál es su carga promedio.</li>
+<li>Mostrá cuánta memoria RAM tenés disponible en formato legible.</li>
+<li>Verificá cuánto espacio libre queda en tu partición raíz.</li>
+<li>Encontrá qué carpeta dentro de <code>/var</code> ocupa más espacio.</li>
+<li>Mostrá los últimos 5 inicios de sesión en el sistema.</li>
+<li>Revisá si hubo errores registrados desde el último arranque.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">uptime</span>                                <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">free <span class="fl">-h</span></span>                               <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">df <span class="fl">-h</span> /</span>                              <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo du <span class="fl">-h --max-depth=1</span> /var | sort <span class="fl">-rh</span> | head</span>  <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">last <span class="fl">-5</span></span>                              <span class="cm"># 5</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">journalctl <span class="fl">-p</span> err <span class="fl">-b</span></span>                    <span class="cm"># 6</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 11: CRON ============ */
+reg({idx:'11',group:'Redes y servicios',navTitle:'Tareas programadas',html:`
+<div class="topbar"><span class="path">tty0 / servicios / <b>tareas programadas</b></span></div>
+<div class="mod-head">
+  <span class="level int">nivel intermedio</span>
+  <h1><span class="n">11.</span> Automatizar con cron</h1>
+  <p class="lead">Ejecutar tareas de mantenimiento solas: backups nocturnos, limpieza de logs, chequeos periódicos. Un servidor bien administrado se cuida a sí mismo.</p>
+</div>
+
+<h2>cron: el reloj del sistema</h2>
+<p><strong>cron</strong> ejecuta comandos en horarios programados. Editás tus tareas con <code>crontab -e</code>. Cada línea tiene cinco campos de tiempo seguidos del comando:</p>
+<div class="diagram">
+<svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="13">
+  <text x="60" y="40" fill="#f2a541" font-size="22" letter-spacing="14">* * * * *</text>
+  <line x1="70" y1="50" x2="70" y2="80" stroke="#8ec07c"/><text x="70" y="98" text-anchor="middle" fill="#8ec07c" font-size="11">minuto</text><text x="70" y="112" text-anchor="middle" fill="#6b7280" font-size="10">0-59</text>
+  <line x1="118" y1="50" x2="118" y2="100" stroke="#7cc5c9"/><text x="118" y="128" text-anchor="middle" fill="#7cc5c9" font-size="11">hora</text><text x="118" y="142" text-anchor="middle" fill="#6b7280" font-size="10">0-23</text>
+  <line x1="166" y1="50" x2="166" y2="120" stroke="#b48ead"/><text x="166" y="158" text-anchor="middle" fill="#b48ead" font-size="11">día mes</text><text x="166" y="172" text-anchor="middle" fill="#6b7280" font-size="10">1-31</text>
+  <line x1="214" y1="50" x2="214" y2="80" stroke="#e07a5f"/><text x="270" y="98" text-anchor="middle" fill="#e07a5f" font-size="11">mes (1-12)</text>
+  <line x1="262" y1="50" x2="262" y2="120" stroke="#f2a541"/><text x="370" y="158" text-anchor="middle" fill="#f2a541" font-size="11">día semana (0-7, 0=dom)</text>
+  <text x="60" y="195" fill="#6b7280" font-size="11">* significa "cada / cualquiera"</text>
+</svg>
+<div class="cap">minuto · hora · día-del-mes · mes · día-de-semana · comando</div>
+</div>
+
+<h2>Ejemplos que se leen solos</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">crontab -e</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># cada día a las 3:00 AM → backup</span></div>
+<div class="l"><span class="fl">0 3 * * *</span> <span class="cmd">/opt/scripts/backup.sh</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># cada 15 minutos → chequeo de salud</span></div>
+<div class="l"><span class="fl">*/15 * * * *</span> <span class="cmd">/opt/scripts/healthcheck.sh</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># lunes a viernes a las 8:00 → reporte</span></div>
+<div class="l"><span class="fl">0 8 * * 1-5</span> <span class="cmd">/opt/scripts/reporte.sh</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># primer día de cada mes a medianoche → rotar logs</span></div>
+<div class="l"><span class="fl">0 0 1 * *</span> <span class="cmd">/opt/scripts/rotar_logs.sh</span></div>
+</div></div>
+<table class="cmdtable">
+<thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>crontab -e</code></td><td>Editar tus tareas cron.</td></tr>
+<tr><td><code>crontab -l</code></td><td>Listar tus tareas actuales.</td></tr>
+<tr><td><code>crontab -r</code></td><td>Borrar todas tus tareas (¡cuidado!).</td></tr>
+<tr><td><code>sudo crontab -e</code></td><td>Editar el cron de root (tareas del sistema).</td></tr>
+</tbody></table>
+<div class="note tip"><span class="tag">¿No sabés la sintaxis?</span>
+La web <a href="https://crontab.guru">crontab.guru</a> traduce cualquier expresión cron a lenguaje natural. Y para no perder los errores, redirigí la salida a un log: <code>0 3 * * * /opt/backup.sh &gt;&gt; /var/log/backup.log 2&gt;&1</code>.</div>
+
+<h2>Alternativas: at y timers de systemd</h2>
+<ul>
+<li><code>at</code> — para una tarea <strong>única</strong> en el futuro: <code>echo "reboot" | at 02:00</code>.</li>
+<li><strong>systemd timers</strong> — la opción moderna: más potente que cron, se integra con los servicios y sus logs quedan en <code>journalctl</code>. Ideal cuando ya definiste tu tarea como un servicio.</li>
+</ul>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Escribí (en papel o mentalmente) la expresión cron para "cada domingo a las 23:30".</li>
+<li>Creá un script <code>~/fecha.sh</code> que agregue la fecha actual a <code>~/registro.txt</code>. Dale permiso de ejecución.</li>
+<li>Programá una tarea cron que ejecute ese script cada minuto.</li>
+<li>Esperá dos minutos y verificá que <code>~/registro.txt</code> tiene nuevas líneas.</li>
+<li>Listá tus tareas cron y luego eliminá la que creaste.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># 1) 30 23 * * 0</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">echo <span class="hl">'date &gt;&gt; ~/registro.txt'</span> &gt; ~/fecha.sh</span>  <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod +x ~/fecha.sh</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">crontab <span class="fl">-e</span></span>   <span class="cm"># 3) agregá:  * * * * * ~/fecha.sh</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">cat ~/registro.txt</span>                        <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">crontab <span class="fl">-l</span></span>   <span class="cm"># 5) listar; luego crontab -e y borrar la línea</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 12: DISCOS ============ */
+reg({idx:'12',group:'Avanzado',navTitle:'Discos y almacenamiento',html:`
+<div class="topbar"><span class="path">tty0 / avanzado / <b>discos y almacenamiento</b></span></div>
+<div class="mod-head">
+  <span class="level adv">nivel avanzado</span>
+  <h1><span class="n">12.</span> Discos, particiones y montaje</h1>
+  <p class="lead">Agregar un disco nuevo, particionarlo, formatearlo y montarlo de forma permanente. Fundamental cuando un servidor necesita más almacenamiento.</p>
+</div>
+
+<h2>Cómo ve Linux los discos</h2>
+<p>Cada disco es un archivo en <code>/dev/</code>: <code>sda</code>, <code>sdb</code> (SATA/USB) o <code>nvme0n1</code> (SSD NVMe). Sus particiones se numeran: <code>sda1</code>, <code>sda2</code>. Para verlos todos:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">lsblk</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">lsblk</span></div>
+<div class="l"><span class="out">NAME   SIZE TYPE MOUNTPOINT</span></div>
+<div class="l"><span class="out">sda     40G disk</span></div>
+<div class="l"><span class="out">└─sda1  40G part </span><span class="hl">/</span>              <span class="cm"># disco del sistema</span></div>
+<div class="l"><span class="out">sdb    100G disk</span>                <span class="cm"># disco nuevo, sin particionar</span></div>
+</div></div>
+
+<h2>El flujo de agregar un disco</h2>
+<div class="diagram">
+<svg viewBox="0 0 600 90" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace" font-size="11">
+  <g>
+    <rect x="10" y="25" width="105" height="40" rx="7" fill="#1e2128" stroke="#f2a541"/><text x="62" y="43" text-anchor="middle" fill="#f2a541">1. particionar</text><text x="62" y="57" text-anchor="middle" fill="#6b7280">fdisk</text>
+    <rect x="135" y="25" width="105" height="40" rx="7" fill="#1e2128" stroke="#8ec07c"/><text x="187" y="43" text-anchor="middle" fill="#8ec07c">2. formatear</text><text x="187" y="57" text-anchor="middle" fill="#6b7280">mkfs</text>
+    <rect x="260" y="25" width="105" height="40" rx="7" fill="#1e2128" stroke="#7cc5c9"/><text x="312" y="43" text-anchor="middle" fill="#7cc5c9">3. montar</text><text x="312" y="57" text-anchor="middle" fill="#6b7280">mount</text>
+    <rect x="385" y="25" width="130" height="40" rx="7" fill="#1e2128" stroke="#b48ead"/><text x="450" y="43" text-anchor="middle" fill="#b48ead">4. permanente</text><text x="450" y="57" text-anchor="middle" fill="#6b7280">/etc/fstab</text>
+  </g>
+  <line x1="115" y1="45" x2="133" y2="45" stroke="#6b7280"/><line x1="240" y1="45" x2="258" y2="45" stroke="#6b7280"/><line x1="365" y1="45" x2="383" y2="45" stroke="#6b7280"/>
+</svg>
+<div class="cap">De disco crudo a carpeta usable</div>
+</div>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">agregar /dev/sdb</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo fdisk /dev/sdb</span>          <span class="cm"># 1) n (nueva) → w (guardar)</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mkfs.ext4 /dev/sdb1</span>     <span class="cm"># 2) formatear con ext4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mkdir /data</span>             <span class="cm"># 3) crear punto de montaje</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mount /dev/sdb1 /data</span>   <span class="cm">#    montar (temporal, hasta reiniciar)</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">df <span class="fl">-h</span> /data</span>                <span class="cm">#    verificar</span></div>
+</div></div>
+
+<h2>Montaje permanente: /etc/fstab</h2>
+<p>El montaje con <code>mount</code> se pierde al reiniciar. Para que sea permanente, se agrega una línea a <code>/etc/fstab</code>. Se usa el <strong>UUID</strong> del disco (estable) en vez del nombre <code>/dev/sdb1</code> (puede cambiar):</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">fstab</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo blkid /dev/sdb1</span>          <span class="cm"># obtener el UUID</span></div>
+<div class="l"><span class="out">/dev/sdb1: UUID="a1b2c3d4-..." TYPE="ext4"</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo nano /etc/fstab</span>          <span class="cm"># agregar la línea:</span></div>
+<div class="l"><span class="cmd">UUID=a1b2c3d4-... /data ext4 defaults 0 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mount <span class="fl">-a</span></span>                <span class="cm"># probar fstab SIN reiniciar</span></div>
+</div></div>
+<div class="note warn"><span class="tag">Un error en fstab puede frenar el arranque</span>
+Si escribís mal una línea de <code>/etc/fstab</code>, el servidor puede no bootear. Por eso <code>sudo mount -a</code> es obligatorio: prueba todas las entradas ahora mismo. Si no da error, el reinicio será seguro.</div>
+
+<h2>LVM: flexibilidad para producción</h2>
+<p><strong>LVM</strong> (Logical Volume Manager) es una capa que permite redimensionar y combinar discos sin reparticionar. En servidores serios es el estándar. El concepto en tres niveles: los discos físicos (PV) forman un grupo (VG) del que se cortan volúmenes lógicos (LV) que sí montás. Su gran ventaja: podés <strong>agrandar un volumen en caliente</strong> cuando se queda sin espacio, sumando otro disco al grupo. Es un tema amplio; por ahora alcanza con saber que existe y para qué sirve.</p>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<div class="note info" style="margin-top:0"><span class="tag">Nota de laboratorio</span>Estos ejercicios modifican discos. Hacelos en una máquina virtual con un segundo disco de prueba, nunca en un equipo con datos importantes.</div>
+<ol>
+<li>Listá todos los discos y particiones de tu sistema en formato de árbol.</li>
+<li>Identificá cuál es tu disco del sistema y cuál (si hay) está sin usar.</li>
+<li>Sobre un disco de prueba, creá una partición, formateala en ext4 y montala en <code>/mnt/prueba</code>.</li>
+<li>Obtené el UUID de esa partición.</li>
+<li>Verificá el espacio disponible del nuevo montaje y luego desmontalo con <code>umount</code>.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">lsblk</span>                              <span class="cm"># 1 y 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo fdisk /dev/sdb</span>                <span class="cm"># 3) n, w</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mkfs.ext4 /dev/sdb1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mkdir <span class="fl">-p</span> /mnt/prueba</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo mount /dev/sdb1 /mnt/prueba</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo blkid /dev/sdb1</span>               <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">df <span class="fl">-h</span> /mnt/prueba; sudo umount /mnt/prueba</span>  <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+</script>
+
+<script>
+/* ============ MÓDULO 13: BASH SCRIPTING ============ */
+reg({idx:'13',group:'Avanzado',navTitle:'Scripting en Bash',html:`
+<div class="topbar"><span class="path">tty0 / avanzado / <b>scripting</b></span></div>
+<div class="mod-head">
+  <span class="level adv">nivel avanzado</span>
+  <h1><span class="n">13.</span> Scripting en Bash</h1>
+  <p class="lead">Convertir tus comandos en programas reutilizables. Acá dejás de ejecutar tareas una por una y empezás a automatizar de verdad.</p>
+</div>
+
+<h2>Tu primer script</h2>
+<p>Un script es un archivo de texto con comandos. La primera línea, el <strong>shebang</strong>, le dice al sistema qué intérprete usar:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">hola.sh</span></div>
+<div class="term-body">
+<div class="l"><span class="hl">#!/bin/bash</span>              <span class="cm"># shebang: usar bash</span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Hola, $(whoami)"</span></span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Hoy es $(date +%A)"</span></span></div>
+</div></div>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">ejecutarlo</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">chmod +x hola.sh</span>   <span class="cm"># darle permiso de ejecución</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">./hola.sh</span></div>
+<div class="l"><span class="out">Hola, ana</span></div>
+<div class="l"><span class="out">Hoy es martes</span></div>
+</div></div>
+
+<h2>Variables y argumentos</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">variables</span></div>
+<div class="term-body">
+<div class="l"><span class="hl">#!/bin/bash</span></div>
+<div class="l"><span class="cmd">nombre=<span class="hl">"servidor-web"</span></span>       <span class="cm"># sin espacios alrededor del =</span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Nodo: \${nombre}"</span></span>      <span class="cm"># se usa con $ (llaves opcionales)</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># argumentos que se pasan al script:</span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Primer argumento: \$1"</span></span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Cantidad de argumentos: \$#"</span></span></div>
+<div class="l"><span class="cmd">ruta=$(pwd)</span>              <span class="cm"># guardar la salida de un comando</span></div>
+</div></div>
+<div class="note tip"><span class="tag">Comillas siempre</span>
+Encerrá las variables entre comillas dobles: <code>"$archivo"</code>. Si una ruta tiene espacios, sin comillas tu script se rompe. Es el error nº1 de los principiantes en Bash.</div>
+
+<h2>Condicionales</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">if / then</span></div>
+<div class="term-body">
+<div class="l"><span class="hl">#!/bin/bash</span></div>
+<div class="l"><span class="cmd">archivo=<span class="hl">"/etc/passwd"</span></span></div>
+<div class="l"></div>
+<div class="l"><span class="fl">if</span> <span class="cmd">[ -f <span class="hl">"$archivo"</span> ]; </span><span class="fl">then</span></div>
+<div class="l">  <span class="cmd">echo <span class="hl">"$archivo existe"</span></span></div>
+<div class="l"><span class="fl">elif</span> <span class="cmd">[ -d <span class="hl">"$archivo"</span> ]; </span><span class="fl">then</span></div>
+<div class="l">  <span class="cmd">echo <span class="hl">"es un directorio"</span></span></div>
+<div class="l"><span class="fl">else</span></div>
+<div class="l">  <span class="cmd">echo <span class="hl">"no existe"</span></span></div>
+<div class="l"><span class="fl">fi</span></div>
+</div></div>
+<table class="cmdtable">
+<thead><tr><th>Test</th><th>Verdadero si...</th></tr></thead>
+<tbody>
+<tr><td><code>-f ruta</code></td><td>existe y es un archivo</td></tr>
+<tr><td><code>-d ruta</code></td><td>existe y es un directorio</td></tr>
+<tr><td><code>-z "$var"</code></td><td>la variable está vacía</td></tr>
+<tr><td><code>"$a" = "$b"</code></td><td>dos textos son iguales</td></tr>
+<tr><td><code>$a -gt $b</code></td><td>a mayor que b (números: -eq -ne -lt -ge)</td></tr>
+</tbody></table>
+
+<h2>Bucles</h2>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">for / while</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># recorrer una lista</span></div>
+<div class="l"><span class="fl">for</span> <span class="cmd">servicio in nginx ssh cron; </span><span class="fl">do</span></div>
+<div class="l">  <span class="cmd">systemctl is-active <span class="hl">"$servicio"</span></span></div>
+<div class="l"><span class="fl">done</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># recorrer archivos</span></div>
+<div class="l"><span class="fl">for</span> <span class="cmd">f in *.log; </span><span class="fl">do</span></div>
+<div class="l">  <span class="cmd">gzip <span class="hl">"$f"</span></span>   <span class="cm"># comprimir cada log</span></div>
+<div class="l"><span class="fl">done</span></div>
+</div></div>
+
+<h2>Funciones y un script real</h2>
+<p>Juntemos todo en un chequeo de salud reutilizable:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">healthcheck.sh</span></div>
+<div class="term-body">
+<div class="l"><span class="hl">#!/bin/bash</span></div>
+<div class="l"><span class="cmd">set <span class="fl">-euo</span> pipefail</span>       <span class="cm"># frena ante errores: buena práctica</span></div>
+<div class="l"></div>
+<div class="l"><span class="cmd">avisar() {</span>            <span class="cm"># definir una función</span></div>
+<div class="l">  <span class="cmd">echo <span class="hl">"[$(date +%H:%M)] $1"</span></span></div>
+<div class="l"><span class="cmd">}</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># disco por encima del 90%?</span></div>
+<div class="l"><span class="cmd">uso=$(df / | awk <span class="hl">'NR==2 {print \$5}'</span> | tr <span class="fl">-d</span> <span class="hl">'%'</span>)</span></div>
+<div class="l"><span class="fl">if</span> <span class="cmd">[ <span class="hl">"$uso"</span> <span class="fl">-gt</span> 90 ]; </span><span class="fl">then</span></div>
+<div class="l">  <span class="cmd">avisar <span class="hl">"⚠ Disco al \${uso}%"</span></span></div>
+<div class="l"><span class="fl">else</span></div>
+<div class="l">  <span class="cmd">avisar <span class="hl">"✓ Disco OK (\${uso}%)"</span></span></div>
+<div class="l"><span class="fl">fi</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># servicios críticos activos?</span></div>
+<div class="l"><span class="fl">for</span> <span class="cmd">svc in nginx ssh; </span><span class="fl">do</span></div>
+<div class="l">  <span class="fl">if</span> <span class="cmd">systemctl is-active <span class="fl">--quiet</span> <span class="hl">"$svc"</span>; </span><span class="fl">then</span></div>
+<div class="l">    <span class="cmd">avisar <span class="hl">"✓ $svc corriendo"</span></span></div>
+<div class="l">  <span class="fl">else</span></div>
+<div class="l">    <span class="cmd">avisar <span class="hl">"✗ $svc CAÍDO"</span></span></div>
+<div class="l">  <span class="fl">fi</span></div>
+<div class="l"><span class="fl">done</span></div>
+</div></div>
+<div class="note info"><span class="tag">La línea que salva scripts</span>
+<code>set -euo pipefail</code> hace que el script se detenga ante cualquier error (<code>-e</code>), ante variables sin definir (<code>-u</code>) y ante fallos dentro de un pipe. Sin esto, un script puede seguir corriendo tras un error y causar daño silencioso.</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<ol>
+<li>Escribí un script que reciba un nombre como argumento e imprima "Bienvenido, [nombre]". Manejá el caso de que no reciba argumento.</li>
+<li>Hacé un script que recorra todos los archivos <code>.txt</code> de una carpeta y muestre cuántas líneas tiene cada uno.</li>
+<li>Escribí un script que revise si un servicio (pasado como argumento) está activo, e imprima un mensaje claro en cada caso.</li>
+<li>Creá un backup: un script que comprima tu carpeta home en un <code>.tar.gz</code> con la fecha en el nombre del archivo.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="cm"># 1) bienvenida.sh</span></div>
+<div class="l"><span class="fl">if</span> <span class="cmd">[ <span class="fl">-z</span> <span class="hl">"$1"</span> ]; </span><span class="fl">then</span> <span class="cmd">echo <span class="hl">"Falta el nombre"</span>; exit 1; </span><span class="fl">fi</span></div>
+<div class="l"><span class="cmd">echo <span class="hl">"Bienvenido, $1"</span></span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># 2) contar.sh</span></div>
+<div class="l"><span class="fl">for</span> <span class="cmd">f in *.txt; </span><span class="fl">do</span> <span class="cmd">echo <span class="hl">"\$f: $(wc -l < "\$f") líneas"</span>; </span><span class="fl">done</span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># 3) estado.sh</span></div>
+<div class="l"><span class="cmd">systemctl is-active <span class="fl">--quiet</span> <span class="hl">"$1"</span> && echo <span class="hl">"$1 activo"</span> || echo <span class="hl">"$1 inactivo"</span></span></div>
+<div class="l"></div>
+<div class="l"><span class="cm"># 4) backup.sh</span></div>
+<div class="l"><span class="cmd">tar <span class="fl">-czf</span> <span class="hl">"backup-$(date +%F).tar.gz"</span> <span class="hl">"$HOME"</span></span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 14: SEGURIDAD ============ */
+reg({idx:'14',group:'Avanzado',navTitle:'Seguridad',html:`
+<div class="topbar"><span class="path">tty0 / avanzado / <b>seguridad</b></span></div>
+<div class="mod-head">
+  <span class="level adv">nivel avanzado</span>
+  <h1><span class="n">14.</span> Asegurar el servidor (hardening)</h1>
+  <p class="lead">Un servidor conectado a internet es atacado constantemente. Estas medidas básicas cortan la enorme mayoría de los intentos automatizados.</p>
+</div>
+
+<h2>Asegurar el acceso SSH</h2>
+<p>SSH es la puerta principal, y la más atacada. La configuración vive en <code>/etc/ssh/sshd_config</code>. Los tres cambios de mayor impacto:</p>
+<table class="cmdtable">
+<thead><tr><th>Ajuste</th><th>Por qué</th></tr></thead>
+<tbody>
+<tr><td><code>PermitRootLogin no</code></td><td>Nadie entra directo como root. Obliga a usar un usuario + sudo.</td></tr>
+<tr><td><code>PasswordAuthentication no</code></td><td>Solo se entra con clave SSH. Elimina los ataques de fuerza bruta a contraseñas.</td></tr>
+<tr><td><code>Port 2222</code></td><td>Cambiar el puerto (opcional) reduce el ruido de bots que escanean el 22.</td></tr>
+</tbody></table>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">aplicar cambios de SSH</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo nano /etc/ssh/sshd_config</span>   <span class="cm"># editar los ajustes de arriba</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo sshd <span class="fl">-t</span></span>                       <span class="cm"># validar la config ANTES de recargar</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl reload ssh</span></div>
+</div></div>
+<div class="note warn"><span class="tag">Regla de oro del acceso remoto</span>
+Antes de desactivar el login por contraseña, confirmá que tu clave SSH funciona abriendo una <strong>segunda</strong> sesión. Nunca cierres la sesión actual hasta comprobar que la nueva configuración te deja entrar. Si algo sale mal, la sesión abierta es tu salvavidas.</div>
+
+<h2>Firewall: cerrar todo menos lo necesario</h2>
+<p>El principio es <strong>denegar por defecto, permitir lo justo</strong>. Con <code>ufw</code>:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">política restrictiva</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw default deny incoming</span>    <span class="cm"># bloquear todo lo entrante</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw default allow outgoing</span>   <span class="cm"># permitir todo lo saliente</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw allow 22/tcp</span>             <span class="cm"># abrir solo SSH...</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw allow 80,443/tcp</span>         <span class="cm"># ...y la web</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw enable</span></div>
+</div></div>
+
+<h2>fail2ban: bloquear atacantes automáticamente</h2>
+<p><strong>fail2ban</strong> vigila los logs y banea temporalmente cualquier IP con demasiados intentos fallidos de login. Es de instalación casi obligatoria en servidores públicos:</p>
+<div class="term">
+<div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">fail2ban</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> fail2ban</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo systemctl enable <span class="fl">--now</span> fail2ban</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo fail2ban-client status sshd</span>    <span class="cm"># ver IPs baneadas</span></div>
+<div class="l"><span class="out">Currently banned: 3</span></div>
+</div></div>
+
+<h2>Actualizaciones y buenas prácticas</h2>
+<ul>
+<li><strong>Actualizá seguido.</strong> La mayoría de las intrusiones aprovechan fallos ya parcheados. Considerá activar <code>unattended-upgrades</code> para parches de seguridad automáticos.</li>
+<li><strong>Principio de mínimo privilegio.</strong> Cada usuario y servicio solo con los permisos que necesita, ni uno más.</li>
+<li><strong>Menos superficie de ataque.</strong> Desinstalá lo que no uses; cada servicio abierto es una puerta potencial.</li>
+<li><strong>Revisá los accesos.</strong> <code>last</code>, <code>/var/log/auth.log</code> y <code>sudo fail2ban-client status</code> te muestran quién intentó entrar.</li>
+<li><strong>Backups probados.</strong> Un backup que nunca restauraste no es un backup. Probá la restauración.</li>
+</ul>
+<div class="note tip"><span class="tag">Verificación rápida de superficie</span>
+<code>ss -tuln</code> te dice qué está escuchando hacia afuera. Todo lo que aparezca ahí es una puerta: asegurate de que cada puerto abierto corresponde a un servicio que realmente necesitás exponer.</div>
+
+<div class="exercise">
+<div class="xh">▸ Ejercicios prácticos</div>
+<div class="note info" style="margin-top:0"><span class="tag">Nota de laboratorio</span>Practicá esto en una VM. Si lo hacés en un servidor remoto real, mantené siempre una sesión abierta como respaldo.</div>
+<ol>
+<li>Revisá <code>/var/log/auth.log</code> y buscá intentos fallidos de login (líneas con "Failed password").</li>
+<li>Instalá y activá fail2ban. Consultá el estado del "jail" de SSH.</li>
+<li>Configurá el firewall con política de denegar entrantes, permitiendo solo SSH y HTTP/HTTPS.</li>
+<li>En <code>sshd_config</code> (en tu VM), desactivá <code>PermitRootLogin</code>, validá con <code>sshd -t</code> y recargá.</li>
+<li>Listá todos los puertos a la escucha y justificá para qué sirve cada uno.</li>
+</ol>
+<details class="sol"><summary>Ver soluciones</summary>
+<div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">soluciones</span></div>
+<div class="term-body">
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo grep <span class="hl">"Failed password"</span> /var/log/auth.log | tail</span>  <span class="cm"># 1</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo apt install <span class="fl">-y</span> fail2ban && sudo fail2ban-client status sshd</span>  <span class="cm"># 2</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo ufw default deny incoming; sudo ufw allow 22,80,443/tcp; sudo ufw enable</span>  <span class="cm"># 3</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">sudo nano /etc/ssh/sshd_config; sudo sshd <span class="fl">-t</span>; sudo systemctl reload ssh</span>  <span class="cm"># 4</span></div>
+<div class="l"><span class="pr">$</span> <span class="cmd">ss <span class="fl">-tuln</span></span>                                       <span class="cm"># 5</span></div>
+</div></div>
+</details>
+</div>
+`});
+
+/* ============ MÓDULO 15: PROYECTO FINAL ============ */
+reg({idx:'15',group:'Avanzado',navTitle:'Proyecto final',html:`
+<div class="topbar"><span class="path">tty0 / avanzado / <b>proyecto final</b></span></div>
+<div class="mod-head">
+  <span class="level adv">proyecto integrador</span>
+  <h1><span class="n">15.</span> Proyecto: tu primer servidor web</h1>
+  <p class="lead">Ponés en práctica todo el curso montando desde cero un servidor web real, con dominio, HTTPS, backups automáticos y monitoreo.</p>
+</div>
+
+<p>Este proyecto encadena lo que aprendiste. Hacelo en una VM o en un VPS de prueba. No hay soluciones al final: la meta es que tomes decisiones y consultes los módulos anteriores cuando lo necesites. Considerá cada fase completa cuando puedas explicar <em>por qué</em> hiciste cada paso.</p>
+
+<h2>Fase 1 — Preparar el sistema</h2>
+<ol>
+<li>Actualizá el sistema completo (<em>módulo 6</em>).</li>
+<li>Creá un usuario administrador con sudo y desde ahí dejá de usar root (<em>módulo 4</em>).</li>
+<li>Configurá acceso SSH por clave y desactivá el login por contraseña (<em>módulos 9 y 14</em>).</li>
+<li>Activá el firewall permitiendo SSH, HTTP y HTTPS (<em>módulos 9 y 14</em>).</li>
+</ol>
+
+<h2>Fase 2 — Montar el servidor web</h2>
+<ol>
+<li>Instalá <code>nginx</code> y verificá que arranca al bootear (<em>módulos 6 y 8</em>).</li>
+<li>Publicá una página <code>index.html</code> propia en <code>/var/www/html</code> con los permisos y propietario correctos (<em>módulos 2 y 3</em>).</li>
+<li>Comprobá con <code>curl</code> que responde, y revisá los logs de acceso (<em>módulos 8 y 9</em>).</li>
+</ol>
+
+<h2>Fase 3 — HTTPS y seguridad</h2>
+<ol>
+<li>Instalá <code>fail2ban</code> para proteger SSH (<em>módulo 14</em>).</li>
+<li>Si tenés un dominio real apuntando al servidor, obtené un certificado gratuito con <code>certbot</code> para servir por HTTPS.</li>
+<li>Verificá que solo los puertos necesarios están a la escucha (<em>módulos 9 y 14</em>).</li>
+</ol>
+
+<h2>Fase 4 — Automatización y monitoreo</h2>
+<ol>
+<li>Escribí un script de backup que comprima el sitio y la configuración con fecha en el nombre (<em>módulo 13</em>).</li>
+<li>Programalo con cron para que corra cada noche (<em>módulo 11</em>).</li>
+<li>Escribí un <code>healthcheck.sh</code> que revise disco, memoria y estado de nginx, y programalo cada 15 minutos (<em>módulos 10 y 13</em>).</li>
+<li>Simulá un problema (detené nginx) y confirmá que tu chequeo lo detecta (<em>módulos 7, 8 y 10</em>).</li>
+</ol>
+
+<div class="note tip"><span class="tag">Criterio de "terminado"</span>
+Tu servidor está listo cuando: sobrevive a un reinicio con todos los servicios levantados solos, solo acepta SSH por clave, sirve tu web, se respalda solo cada noche y te avisaría si algo se cae. Ese es, en esencia, el trabajo de un administrador de sistemas.</div>
+
+<h2>¿Y ahora qué?</h2>
+<p>Con estas bases sólidas, los siguientes pasos naturales son:</p>
+<ul>
+<li><strong>Docker y contenedores</strong> — empaquetar y desplegar aplicaciones de forma reproducible.</li>
+<li><strong>Ansible</strong> — automatizar la configuración de muchos servidores a la vez.</li>
+<li><strong>Nginx como reverse proxy</strong> — servir varias aplicaciones detrás de un solo servidor.</li>
+<li><strong>Monitoreo con Prometheus + Grafana</strong> — paneles y alertas de nivel profesional.</li>
+<li><strong>Git y CI/CD</strong> — versionar tu infraestructura y desplegar automáticamente.</li>
+</ul>
+<p>Pero lo más importante ya lo tenés: sabés moverte en la consola, entender qué pasa en el sistema y resolver problemas por tu cuenta. Todo lo demás se construye sobre eso. ¡A practicar!</p>
+`});
+</script>
+
+
+<script>
+/* ---------- Render engine ---------- */
+const main=document.getElementById('main');
+const nav=document.getElementById('nav');
+let done=new Set();
+let current=0;
+
+const GROUPS=[
+  {t:"Fundamentos",lvl:"ini"},
+  {t:"Gestión del sistema",lvl:"int"},
+  {t:"Redes y servicios",lvl:"int"},
+  {t:"Avanzado",lvl:"adv"},
+];
+
+function buildNav(){
+  document.getElementById('ptot').textContent=MODS.length;
+  let lastGroup=null;
+  MODS.forEach((m,i)=>{
+    if(m.group!==lastGroup){
+      const g=document.createElement('div');g.className='nav-group';g.textContent=m.group;
+      nav.appendChild(g);lastGroup=m.group;
+    }
+    const it=document.createElement('div');
+    it.className='nav-item';it.dataset.i=i;
+    it.innerHTML=`<span class="idx">${m.idx}</span><span>${m.navTitle}</span><span class="check">✓</span>`;
+    it.onclick=()=>go(i);
+    nav.appendChild(it);
+  });
+}
+function renderModules(){
+  MODS.forEach((m,i)=>{
+    const sec=document.createElement('section');
+    sec.className='module';sec.id='m'+i;
+    let footer='';
+    if(m.idx!=='~'){
+      footer+=`<button class="mark-done" onclick="toggleDone(${i})">Marcar módulo como completado</button>`;
+    }
+    const prev=i>0?`<button onclick="go(${i-1})"><span class="k">← anterior</span>${MODS[i-1].navTitle}</button>`:'<button disabled>&nbsp;</button>';
+    const next=i<MODS.length-1?`<button class="next" onclick="go(${i+1})"><span class="k">siguiente →</span>${MODS[i+1].navTitle}</button>`:'<button class="next" disabled>&nbsp;</button>';
+    footer+=`<div class="pager">${prev}${next}</div>`;
+    sec.innerHTML=m.html+footer;
+    main.appendChild(sec);
+  });
+}
+function go(i){
+  current=i;
+  document.querySelectorAll('.module').forEach(s=>s.classList.remove('active'));
+  document.getElementById('m'+i).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',+n.dataset.i===i));
+  window.scrollTo({top:0,behavior:'instant'});
+  if(window.innerWidth<=860)closeSide();
+  syncNav();
+}
+function toggleDone(i){
+  if(done.has(i))done.delete(i);else done.add(i);
+  syncNav();
+}
+function syncNav(){
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.toggle('done',done.has(+n.dataset.i));
+  });
+  const d=done.size;
+  document.getElementById('pdone').textContent=d;
+  document.getElementById('pbar').style.width=(d/MODS.length*100)+'%';
+  const btn=document.querySelector('#m'+current+' .mark-done');
+  if(btn){
+    const isd=done.has(current);
+    btn.classList.toggle('is-done',isd);
+    btn.textContent=isd?'✓ Módulo completado':'Marcar módulo como completado';
+  }
+}
+function toggleSide(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('backdrop').classList.toggle('show')}
+function closeSide(){document.getElementById('sidebar').classList.remove('open');document.getElementById('backdrop').classList.remove('show')}
+
+function buildHomeGrid(){
+  const g=document.getElementById('homegrid');if(!g)return;
+  const desc={
+    '01':'Shell, prompt y anatomía de un comando',
+    '02':'Navegar el árbol de directorios y manipular archivos',
+    '03':'Lectura, escritura, ejecución: chmod y chown',
+    '04':'Cuentas, grupos y delegación con sudo',
+    '05':'find, grep, pipes y análisis de logs',
+    '06':'apt, dnf y mantenimiento del sistema',
+    '07':'ps, top, señales y prioridades',
+    '08':'systemctl, journalctl y crear servicios',
+    '09':'ip, ping, ss, SSH y firewall',
+    '10':'CPU, memoria, disco y diagnóstico',
+    '11':'cron: automatizar el mantenimiento',
+    '12':'Particionar, formatear, montar, fstab',
+    '13':'Variables, bucles, funciones y scripts reales',
+    '14':'SSH hardening, firewall y fail2ban',
+    '15':'Montá un servidor web completo de punta a punta'
+  };
+  MODS.forEach((m,i)=>{
+    if(m.idx==='~')return;
+    const c=document.createElement('div');c.className='card';c.onclick=()=>go(i);
+    c.innerHTML='<div class="cn">módulo '+m.idx+'</div><div class="ct">'+m.navTitle+'</div><div class="cd">'+(desc[m.idx]||'')+'</div>';
+    g.appendChild(c);
+  });
+}
+buildNav();renderModules();buildHomeGrid();go(0);
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='SUMMARY'||e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowRight'&&current<MODS.length-1)go(current+1);
+  if(e.key==='ArrowLeft'&&current>0)go(current-1);
+});
+</script>
+</body>
+</html>
